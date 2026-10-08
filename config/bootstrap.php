@@ -13,8 +13,10 @@ return (static function (): Config {
     if (is_file($root . '/.env')) {
         Dotenv::createImmutable($root)->safeLoad();
     }
+    // getenv() comes last so real process variables beat .env even when PHP's
+    // variables_order leaves them out of $_ENV (the default "GPCS").
     $env = [];
-    foreach (array_merge($_SERVER, $_ENV) as $key => $value) {
+    foreach (array_merge($_SERVER, $_ENV, getenv()) as $key => $value) {
         if (is_string($key) && is_string($value)) {
             $env[$key] = $value;
         }

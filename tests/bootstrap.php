@@ -15,7 +15,7 @@ if (is_file($root . '/.env')) {
 }
 
 $env = [];
-foreach (array_merge($_SERVER, $_ENV) as $key => $value) {
+foreach (array_merge($_SERVER, $_ENV, getenv()) as $key => $value) {
     if (is_string($key) && is_string($value)) {
         $env[$key] = $value;
     }
