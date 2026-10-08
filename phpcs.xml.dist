@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<ruleset name="event-booking-system">
+    <description>PSR-12 for application code, tests and CLI scripts.</description>
+    <file>src</file>
+    <file>config</file>
+    <file>tests</file>
+    <file>public/index.php</file>
+    <file>bin/migrate</file>
+    <file>bin/seed</file>
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+    <arg name="cache" value=".phpcs-cache"/>
+    <arg value="sp"/>
+    <rule ref="PSR12"/>
+</ruleset>
