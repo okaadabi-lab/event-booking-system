@@ -1,0 +1,20 @@
+{% extends 'layout/base.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block body %}
+<div class="public">
+  <aside class="public__aside">
+    <div>
+      <a class="brand" href="/inquiry">{{ ui.lantern(30) }}<span>{{ app.name }}</span></a>
+      {% block aside %}{% endblock %}
+    </div>
+    <dl>
+      <div><dt>Showroom</dt><dd>Jl. Melati Raya 12, Bekasi</dd></div>
+      <div><dt>Halls</dt><dd>Pendopo Hall · Garden Terrace · Grand Ballroom</dd></div>
+      <div><dt>Hours</dt><dd>Tue–Sun, 10:00–19:00 WIB</dd></div>
+    </dl>
+  </aside>
+  <main id="main" class="public__main">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}

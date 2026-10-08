@@ -1,0 +1,75 @@
+{% extends 'layout/public.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block title %}Plan your event{% endblock %}
+{% block aside %}
+  <h1>Tell us about your day.</h1>
+  <p>Weddings, lamaran, birthdays and company evenings. Send the basics and our team replies on WhatsApp within one working day with availability and a first quote.</p>
+{% endblock %}
+{% block content %}
+{% set old = submitted is not empty ? submitted : app.old %}
+{% set errors = app.errors %}
+<form class="public__form" method="post" action="/inquiry" novalidate>
+  {{ ui.csrf(app.csrf) }}
+  <h2>Event inquiry</h2>
+  {% if limited %}
+    <p class="notice" role="alert">We have received several inquiries from your connection in the last hour, so this one was not sent. Please try again later, or message us on WhatsApp at 0812-0000-1234.</p>
+  {% endif %}
+  {% include 'partials/flash.twig' %}
+
+  <div class="form-grid form-grid--2">
+    <div class="field">
+      <label for="name">Your name</label>
+      <input id="name" name="name" type="text" autocomplete="name" required maxlength="120" value="{{ old.name ?? '' }}"{{ ui.invalid(errors, 'name') }}>
+      {{ ui.field_error(errors, 'name') }}
+    </div>
+    <div class="field">
+      <label for="phone">Phone / WhatsApp</label>
+      <input id="phone" name="phone" type="tel" autocomplete="tel" required inputmode="tel" placeholder="0812 3456 7890" value="{{ old.phone ?? '' }}"{{ ui.invalid(errors, 'phone') }}>
+      {{ ui.field_error(errors, 'phone') }}
+    </div>
+    <div class="field span-all">
+      <label for="email">Email <span class="muted">(optional)</span></label>
+      <input id="email" name="email" type="email" autocomplete="email" value="{{ old.email ?? '' }}"{{ ui.invalid(errors, 'email') }}>
+      {{ ui.field_error(errors, 'email') }}
+    </div>
+    <div class="field">
+      <label for="event_type">Kind of event</label>
+      <select id="event_type" name="event_type" required{{ ui.invalid(errors, 'event_type') }}>
+        <option value="">Choose one</option>
+        {% for value, label in event_types %}
+          <option value="{{ value }}"{% if (old.event_type ?? '') == value %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {{ ui.field_error(errors, 'event_type') }}
+    </div>
+    <div class="field">
+      <label for="event_date">Event date</label>
+      <input id="event_date" name="event_date" type="date" required min="{{ min_date|input_date }}" value="{{ old.event_date ?? '' }}"{{ ui.invalid(errors, 'event_date') }}>
+      {{ ui.field_error(errors, 'event_date') }}
+    </div>
+    <div class="field">
+      <label for="location">Where</label>
+      <input id="location" name="location" type="text" required maxlength="255" placeholder="One of our halls, or your address" value="{{ old.location ?? '' }}"{{ ui.invalid(errors, 'location') }}>
+      {{ ui.field_error(errors, 'location') }}
+    </div>
+    <div class="field">
+      <label for="guest_count">Number of guests</label>
+      <input id="guest_count" name="guest_count" type="number" required min="1" max="5000" inputmode="numeric" value="{{ old.guest_count ?? '' }}"{{ ui.invalid(errors, 'guest_count') }}>
+      {{ ui.field_error(errors, 'guest_count') }}
+    </div>
+    <div class="field span-all">
+      <label for="message">Anything we should know? <span class="muted">(optional)</span></label>
+      <textarea id="message" name="message" maxlength="2000"{{ ui.invalid(errors, 'message') }}>{{ old.message ?? '' }}</textarea>
+      {{ ui.field_error(errors, 'message') }}
+    </div>
+  </div>
+  <div class="hp-field" aria-hidden="true">
+    <label for="{{ honeypot }}">Company website</label>
+    <input id="{{ honeypot }}" name="{{ honeypot }}" type="text" tabindex="-1" autocomplete="off">
+  </div>
+  <div>
+    <button class="button button--lantern" type="submit">Send inquiry</button>
+  </div>
+  <p class="muted">We only use your details to reply to this inquiry.</p>
+</form>
+{% endblock %}

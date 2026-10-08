@@ -1,0 +1,41 @@
+{% import 'partials/ui.twig' as ui %}
+<div class="setup-grid">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">{{ kind == 'package' ? 'Package' : 'Add-on' }}</th><th scope="col" class="num">Price</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead>
+      <tbody>
+      {% for item in rows %}
+        <tr class="{{ item.isActive ? '' : 'inactive' }}">
+          <td><span class="table__primary">{{ item.name }}</span>{% if not item.isActive %} <span class="muted">(retired)</span>{% endif %}<span class="table__sub">{{ kind == 'addon' ? 'per ' : '' }}{{ item.detail }}</span></td>
+          <td class="num money">{{ item.price|rupiah }}</td>
+          <td>
+            <details class="disclosure"><summary>Edit<span class="visually-hidden"> {{ item.name }}</span></summary>
+              <form method="post" action="{{ action }}" class="form-grid">
+                {{ ui.csrf(app.csrf) }}
+                <input type="hidden" name="id" value="{{ item.id }}">
+                <div class="field"><label for="{{ kind }}-n-{{ item.id }}">Name</label><input id="{{ kind }}-n-{{ item.id }}" name="name" type="text" required value="{{ item.name }}"></div>
+                <div class="field"><label for="{{ kind }}-d-{{ item.id }}">{{ detail_label }}</label><input id="{{ kind }}-d-{{ item.id }}" name="{{ detail_field }}" type="text" value="{{ item.detail }}"></div>
+                <div class="field"><label for="{{ kind }}-p-{{ item.id }}">Price</label><div class="input-money"><span>Rp</span><input id="{{ kind }}-p-{{ item.id }}" name="price" type="text" inputmode="numeric" required value="{{ item.price }}"></div></div>
+                <label class="checkbox"><input type="checkbox" name="is_active" value="1"{% if item.isActive %} checked{% endif %}> Offered on new quotes</label>
+                <button class="button button--small" type="submit">Save</button>
+              </form>
+            </details>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="muted">Nothing in the catalog yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <form class="panel" method="post" action="{{ action }}" novalidate>
+    <div class="panel__head"><h2>Add {{ kind == 'package' ? 'a package' : 'an add-on' }}</h2></div>
+    <div class="panel__body form-grid">
+      {{ ui.csrf(app.csrf) }}
+      <div class="field span-all"><label for="new-{{ kind }}-name">Name</label><input id="new-{{ kind }}-name" name="name" type="text" required value="{{ app.old.name ?? '' }}"{{ ui.invalid(app.errors, 'name') }}>{{ ui.field_error(app.errors, 'name') }}</div>
+      <div class="field span-all"><label for="new-{{ kind }}-detail">{{ detail_label }}</label><input id="new-{{ kind }}-detail" name="{{ detail_field }}" type="text" value="{{ app.old[detail_field] ?? '' }}"{{ ui.invalid(app.errors, detail_field) }}>{{ ui.field_error(app.errors, detail_field) }}</div>
+      <div class="field span-all"><label for="new-{{ kind }}-price">Price</label><div class="input-money"><span>Rp</span><input id="new-{{ kind }}-price" name="price" type="text" inputmode="numeric" required value="{{ app.old.price ?? '' }}"{{ ui.invalid(app.errors, 'price') }}></div>{{ ui.field_error(app.errors, 'price') }}</div>
+      <div class="span-all"><button class="button button--primary" type="submit">Add {{ kind == 'package' ? 'package' : 'add-on' }}</button></div>
+    </div>
+  </form>
+</div>

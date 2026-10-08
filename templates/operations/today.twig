@@ -1,0 +1,99 @@
+{% extends 'layout/app.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block title %}Run sheet{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Run sheet</h1>
+    <p class="page-head__lede">Upcoming events by day with the venue and crew holding each slot. Flags show what still needs doing before the team can set up.</p>
+  </div>
+  <div class="page-head__actions">
+    <nav class="segmented" aria-label="Range">
+      {% for key, days in ranges %}
+        <a href="/today?range={{ key }}"{% if key == range %} aria-current="page"{% endif %}>{{ key == 'today' ? 'Today' : (key == 'week' ? 'Next 7 days' : 'Next 14 days') }}</a>
+      {% endfor %}
+    </nav>
+    {% if app.can['create-booking'] %}<a class="button button--primary" href="/bookings/new">New quote</a>{% endif %}
+  </div>
+</div>
+
+<div class="runsheet-summary">
+  <span><strong>{{ event_count }}</strong>{{ event_count == 1 ? 'event' : 'events' }}</span>
+  <span class="{{ flagged_count > 0 ? 'is-risk' : '' }}"><strong>{{ flagged_count }}</strong>need attention</span>
+  <span><strong>{{ counts.inquiry }}</strong><a href="/bookings?status=inquiry">open {{ counts.inquiry == 1 ? 'inquiry' : 'inquiries' }}</a></span>
+  <span><strong>{{ counts.quoted }}</strong><a href="/bookings?status=quoted">{{ counts.quoted == 1 ? 'quote' : 'quotes' }} awaiting deposit</a></span>
+</div>
+
+{% if timeline is empty %}
+  <div class="panel empty">
+    <h2>Nothing scheduled</h2>
+    <p>No open bookings have an event in this range. Widen the range, or check the calendar for later dates.</p>
+    <a class="button" href="/calendar">Open the calendar</a>
+  </div>
+{% else %}
+  <div class="ruler" aria-hidden="true">
+    <span></span>
+    <div class="ruler__ticks"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span></span></div>
+  </div>
+  {% for group in timeline %}
+    {% set is_today = group.date|input_date == app.today|input_date %}
+    <section class="day{{ is_today ? ' day--today' : '' }}" aria-labelledby="day-{{ loop.index }}">
+      <h2 class="day__label" id="day-{{ loop.index }}">
+        <span class="day__weekday">{{ group.date|date('D') }}</span>
+        <span class="day__date">{{ group.date|date('j') }}</span>
+        <span class="day__month">{{ group.date|date('M') }}</span>
+        {% if is_today %}<span class="day__today-mark">Today</span>{% endif %}
+      </h2>
+      <div class="day__events">
+        {% for event in group.events %}
+          {% set b = event.booking %}
+          <article class="event event--{{ b.status.value }}{{ event.flags is not empty ? ' event--flagged' : '' }}">
+            <div>
+              <div class="event__title">
+                <a href="/bookings/{{ b.id }}">{{ b.customer.name }}</a>
+                <span class="event__code">{{ b.code }}</span>
+                {{ ui.status(b.status) }}
+              </div>
+              <p class="event__meta">{{ b.location }} · {{ b.guestCount|plain_number }} guests</p>
+              <div class="event__crew">
+                {% for a in event.assignments %}
+                  <span class="chip">{{ ui.icon(a.resource.type.value) }}{{ a.resource.name }}</span>
+                {% else %}
+                  <span class="muted">No venue or crew assigned</span>
+                {% endfor %}
+              </div>
+              {% if event.flags is not empty %}
+                <div class="event__flags">
+                  {% for flag in event.flags %}<span class="flag flag--{{ flag.level }}">{{ flag.label }}</span>{% endfor %}
+                </div>
+              {% else %}
+                <div class="event__flags"><span class="flag flag--ok">Ready</span></div>
+              {% endif %}
+            </div>
+            <div class="event__track">
+              {% if b.window %}
+                {% set s = day_fraction(b.window.start, group.date) %}
+                {% set e = day_fraction(b.window.end, group.date) %}
+                <svg class="track" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="On site {{ b.window.format }}">
+                  <rect class="track__bg" width="100" height="10"/>
+                  <rect class="track__night" width="25" height="10"/>
+                  <line class="track__grid" x1="25" x2="25" y1="0" y2="10"/>
+                  <line class="track__grid" x1="50" x2="50" y1="0" y2="10"/>
+                  <line class="track__grid" x1="75" x2="75" y1="0" y2="10"/>
+                  <rect class="track__window" x="{{ s }}" width="{{ max(e - s, 0.5) }}" y="2" height="6" rx="0.6"/>
+                </svg>
+                <div class="track__labels">
+                  <span>Setup <strong>{{ b.window.start|time }}</strong>{% if b.window.start|input_date != group.date|input_date %} ({{ b.window.start|date('D') }}){% endif %}</span>
+                  <span>Teardown done <strong>{{ b.window.end|time }}</strong></span>
+                </div>
+              {% else %}
+                <p class="muted">Setup and teardown times not set yet.</p>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+{% endif %}
+{% endblock %}

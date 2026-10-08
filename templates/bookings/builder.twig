@@ -1,0 +1,220 @@
+{% extends 'layout/app.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block title %}{{ booking ? 'Edit quote ' ~ booking.code : 'New quote' }}{% endblock %}
+{% block content %}
+{% set old = app.old %}
+{% set errors = app.errors %}
+{% set has_old = old is not empty %}
+{% set can_override = app.can['override-price'] %}
+{% set b = booking %}
+<a class="back-link" href="{{ b ? '/bookings/' ~ b.id : '/bookings' }}">{{ b ? 'Back to ' ~ b.code : 'All bookings' }}</a>
+<div class="page-head">
+  <div>
+    <h1>{{ b ? 'Edit quote' : 'New quote' }}</h1>
+    <p class="page-head__lede">{{ b ? b.code ~ ' for ' ~ b.customer.name ~ '.' : 'Price an event and hold the venue and crew in one step.' }} Totals are recalculated on the server when you save.</p>
+  </div>
+</div>
+
+<form class="builder" method="post" action="{{ b ? '/bookings/' ~ b.id : '/bookings' }}" novalidate
+      data-quote-builder
+      data-deposit-percent="{{ deposit_percent }}"
+      data-exclude="{{ b ? b.id : '' }}">
+  {{ ui.csrf(app.csrf) }}
+  <div class="builder__main">
+    {% if not b %}
+    <fieldset class="panel">
+      <div class="panel__body">
+        <legend class="section-title"><h2>Customer</h2><p>Matched by phone number, so returning customers are not duplicated.</p></legend>
+        <div class="form-grid">
+          <div class="field">
+            <label for="customer_name">Name</label>
+            <input id="customer_name" name="customer_name" type="text" required maxlength="120" value="{{ old.customer_name ?? '' }}"{{ ui.invalid(errors, 'customer_name') }}>
+            {{ ui.field_error(errors, 'customer_name') }}
+          </div>
+          <div class="field">
+            <label for="customer_phone">Phone</label>
+            <input id="customer_phone" name="customer_phone" type="tel" required inputmode="tel" placeholder="0812 3456 7890" value="{{ old.customer_phone ?? '' }}"{{ ui.invalid(errors, 'customer_phone') }}>
+            {{ ui.field_error(errors, 'customer_phone') }}
+          </div>
+          <div class="field">
+            <label for="customer_email">Email <span class="muted">(optional)</span></label>
+            <input id="customer_email" name="customer_email" type="email" value="{{ old.customer_email ?? '' }}"{{ ui.invalid(errors, 'customer_email') }}>
+            {{ ui.field_error(errors, 'customer_email') }}
+          </div>
+        </div>
+      </div>
+    </fieldset>
+    {% endif %}
+
+    <fieldset class="panel">
+      <div class="panel__body">
+        <legend class="section-title"><h2>Event</h2><p>The on-site window runs from crew arrival to the end of teardown.</p></legend>
+        <div class="form-grid">
+          <div class="field">
+            <label for="event_date">Event date</label>
+            <input id="event_date" name="event_date" type="date" required value="{{ has_old ? old.event_date ?? '' : (b ? b.eventDate|input_date : '') }}"{{ ui.invalid(errors, 'event_date') }}>
+            {{ ui.field_error(errors, 'event_date') }}
+          </div>
+          <div class="field">
+            <label for="guest_count">Guests</label>
+            <input id="guest_count" name="guest_count" type="number" min="1" max="5000" required value="{{ has_old ? old.guest_count ?? '' : (b ? b.guestCount : '') }}"{{ ui.invalid(errors, 'guest_count') }}>
+            {{ ui.field_error(errors, 'guest_count') }}
+          </div>
+          <div class="field span-all">
+            <label for="location">Location</label>
+            <input id="location" name="location" type="text" required maxlength="255" value="{{ has_old ? old.location ?? '' : (b ? b.location : '') }}"{{ ui.invalid(errors, 'location') }}>
+            {{ ui.field_error(errors, 'location') }}
+          </div>
+          <div class="field">
+            <label for="setup_start">Setup starts</label>
+            <input id="setup_start" name="setup_start" type="datetime-local" value="{{ has_old ? old.setup_start ?? '' : (b and b.window ? b.window.start|input_datetime : '') }}"{{ ui.invalid(errors, 'setup_start') }} data-window>
+            {{ ui.field_error(errors, 'setup_start') }}
+          </div>
+          <div class="field">
+            <label for="teardown_end">Teardown ends</label>
+            <input id="teardown_end" name="teardown_end" type="datetime-local" value="{{ has_old ? old.teardown_end ?? '' : (b and b.window ? b.window.end|input_datetime : '') }}"{{ ui.invalid(errors, 'teardown_end') }} data-window>
+            {{ ui.field_error(errors, 'teardown_end') }}
+          </div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="panel">
+      <div class="panel__body">
+        <legend class="section-title"><h2>Package</h2><p>Prices are copied into the quote when it is saved.</p></legend>
+        {% set chosen_package = has_old ? (old.package_id ?? '') : (selected.package ?? '') %}
+        {% set snapshot_package = items|filter(i => i.itemType == 'package')|first %}
+        <div class="package-grid">
+          {% set listed = false %}
+          {% for p in packages %}
+            {% set price = selected.prices['package:' ~ p.id] ?? p.price %}
+            <label class="package-option">
+              <input type="radio" name="package_id" value="{{ p.id }}" data-price="{{ price }}" data-name="{{ p.name }}"{% if chosen_package ~ '' == p.id ~ '' %} checked{% endif %}>
+              <span class="package-option__name">{{ p.name }}</span>
+              <span class="package-option__desc">{{ p.detail }}</span>
+              <span class="package-option__price money">{{ price|rupiah }}{% if price != p.price %} <span class="muted">(quoted; catalog {{ p.price|rupiah }})</span>{% endif %}</span>
+            </label>
+          {% endfor %}
+          {% if snapshot_package and packages|filter(p => p.id == snapshot_package.catalogId) is empty %}
+            <label class="package-option">
+              <input type="radio" name="package_id" value="{{ snapshot_package.catalogId }}" data-price="{{ snapshot_package.unitPrice }}" data-name="{{ snapshot_package.name }}"{% if chosen_package ~ '' == snapshot_package.catalogId ~ '' %} checked{% endif %}>
+              <span class="package-option__name">{{ snapshot_package.name }}</span>
+              <span class="package-option__desc">No longer offered; kept at the quoted price.</span>
+              <span class="package-option__price money">{{ snapshot_package.unitPrice|rupiah }}</span>
+            </label>
+          {% endif %}
+        </div>
+        {{ ui.field_error(errors, 'package_id') }}
+      </div>
+    </fieldset>
+
+    <fieldset class="panel">
+      <div class="panel__body">
+        <legend class="section-title"><h2>Add-ons</h2><p>Set a quantity for anything the customer wants on top of the package.</p></legend>
+        {{ ui.field_error(errors, 'addons') }}
+        {{ ui.field_error(errors, 'price') }}
+        <div class="table-wrap">
+        <table class="addon-table">
+          <thead><tr><th scope="col">Add-on</th><th scope="col" class="num">Unit price</th><th scope="col" class="num">Qty</th><th scope="col" class="num">Amount</th></tr></thead>
+          <tbody>
+            {% for a in addons %}
+              {% set key = 'addon:' ~ a.id %}
+              {% set price = selected.prices[key] ?? a.price %}
+              {% set qty = has_old ? (old.addons[a.id] ?? 0) : (selected.addons[a.id] ?? 0) %}
+              <tr data-addon-row>
+                <td><label for="addon-{{ a.id }}">{{ a.name }}</label> <span class="muted">per {{ a.detail }}</span></td>
+                <td class="num">
+                  {% if can_override %}
+                    <div class="input-money price-input"><span>Rp</span><input type="text" inputmode="numeric" name="price[{{ key }}]" aria-label="Unit price for {{ a.name }}" value="{{ has_old ? old.price[key] ?? price : price }}" data-unit-price></div>
+                  {% else %}
+                    <span class="money" data-unit-price-static="{{ price }}">{{ price|rupiah }}</span>
+                  {% endif %}
+                </td>
+                <td class="num"><input id="addon-{{ a.id }}" type="number" name="addons[{{ a.id }}]" min="0" max="1000" value="{{ qty }}" data-qty data-name="{{ a.name }}"></td>
+                <td class="num money" data-line-total>—</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" class="muted">No add-ons in the catalog yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% if can_override %}
+          <div class="form-grid package-override">
+            <div class="field">
+              <label for="package-price">Package unit price</label>
+              <div class="input-money"><span>Rp</span><input id="package-price" name="package_price" type="text" inputmode="numeric" data-package-price placeholder="As shown on the package" value="{{ old.package_price ?? '' }}"></div>
+              <p class="field__hint">Leave blank to use the price shown on the package. Changes are recorded in the activity log.</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </fieldset>
+
+    <fieldset class="panel">
+      <div class="panel__body">
+        <legend class="section-title"><h2>Venue &amp; crew</h2><p>Availability includes a {{ buffer_minutes }}-minute changeover buffer between events.</p></legend>
+        <div class="availability" data-availability>
+          <p class="availability__status" data-availability-status aria-live="polite">{{ resources is empty ? 'No resources set up yet.' : 'Set the setup and teardown times to check availability.' }}</p>
+          <div class="resource-pick">
+            {% set picked = has_old ? (old.resources ?? []) : assigned %}
+            {% for r in resources %}
+              <label class="resource-option" data-resource="{{ r.id }}">
+                <input type="checkbox" name="resources[]" value="{{ r.id }}"{% if r.id in picked or (r.id ~ '') in picked %} checked{% endif %}{% if r.id in assigned %} disabled data-held{% endif %}>
+                <span class="resource-option__name">{{ r.name }}</span>
+                <span class="resource-option__state" data-resource-state>{{ r.id in assigned ? 'Held by this booking' : r.type.label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          <p class="field__hint">Ticked resources are reserved when you save. Each one is re-checked under a lock, so a slot taken in the meantime is reported instead of double-booked.{% if b %} Release held resources from the booking page.{% endif %}</p>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="panel">
+      <div class="panel__body">
+        <legend class="section-title"><h2>Discount &amp; notes</h2></legend>
+        <div class="form-grid">
+          <div class="field">
+            <label for="discount">Discount</label>
+            <div class="input-money"><span>Rp</span><input id="discount" name="discount" type="text" inputmode="numeric" value="{{ has_old ? old.discount ?? '' : (b and b.discountAmount > 0 ? b.discountAmount : '') }}" data-discount{{ ui.invalid(errors, 'discount') }}></div>
+            {{ ui.field_error(errors, 'discount') }}
+          </div>
+          <div class="field">
+            <label for="discount_reason">Discount reason</label>
+            <input id="discount_reason" name="discount_reason" type="text" maxlength="255" value="{{ has_old ? old.discount_reason ?? '' : (b ? b.discountReason : '') }}"{{ ui.invalid(errors, 'discount_reason') }}>
+            {{ ui.field_error(errors, 'discount_reason') }}
+          </div>
+          <div class="field span-all">
+            <label for="notes">Internal notes</label>
+            <textarea id="notes" name="notes" maxlength="2000">{{ has_old ? old.notes ?? '' : (b ? b.notes : '') }}</textarea>
+          </div>
+        </div>
+      </div>
+    </fieldset>
+  </div>
+
+  <aside class="summary panel" aria-labelledby="summary-title">
+    <div class="panel__head"><h2 id="summary-title">Quote summary</h2></div>
+    <div class="panel__body">
+      <ul class="summary__lines" data-summary-lines>
+        <li class="muted">Pick a package to start.</li>
+      </ul>
+      <div class="summary__row"><span>Subtotal</span><span class="money" data-subtotal>Rp 0</span></div>
+      <div class="summary__row"><span>Discount</span><span class="money" data-discount-out>Rp 0</span></div>
+      <div class="summary__row summary__total"><span>Total</span><strong class="money" data-total>{{ b ? b.total|rupiah : 'Rp 0' }}</strong></div>
+      <div class="summary__row"><span>Deposit ({{ deposit_percent }}%)</span><span class="money" data-deposit>Rp 0</span></div>
+      <p class="summary__note" data-summary-error role="alert"></p>
+      <div class="summary__actions">
+        {% if not b or b.status.value == 'inquiry' %}
+          <button class="button button--primary" type="submit" name="intent" value="quote">Save and mark as quoted</button>
+          <button class="button" type="submit" name="intent" value="draft">Save as draft inquiry</button>
+        {% else %}
+          <button class="button button--primary" type="submit" name="intent" value="save">Save quote</button>
+        {% endif %}
+      </div>
+    </div>
+  </aside>
+</form>
+{% endblock %}
+{% block scripts %}<script src="/assets/js/quote-builder.js" defer></script>{% endblock %}

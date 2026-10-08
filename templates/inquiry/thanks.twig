@@ -1,0 +1,20 @@
+{% extends 'layout/public.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block title %}Inquiry received{% endblock %}
+{% block aside %}
+  <h1>Terima kasih.</h1>
+  <p>Our team reviews new inquiries every morning and replies on WhatsApp with availability and a first quote.</p>
+{% endblock %}
+{% block content %}
+<div class="public__form">
+  <h2>Inquiry received</h2>
+  {% if code %}
+    <p>Your reference number is</p>
+    <p><span class="code-callout">{{ code }}</span></p>
+    <p>Mention it when you contact us so we can find your request straight away.</p>
+  {% else %}
+    <p>Thank you. We will be in touch shortly.</p>
+  {% endif %}
+  <p><a href="/inquiry">Send another inquiry</a></p>
+</div>
+{% endblock %}

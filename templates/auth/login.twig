@@ -1,0 +1,25 @@
+{% extends 'layout/public.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block title %}Sign in{% endblock %}
+{% block aside %}
+  <h1>Every hall, crew and rupiah in one place.</h1>
+  <p>Staff sign-in for quotes, scheduling and payments. Customers can send an inquiry from the public form.</p>
+{% endblock %}
+{% block content %}
+<form class="public__form public__form--narrow" method="post" action="/login" novalidate>
+  {{ ui.csrf(app.csrf) }}
+  <h2>Staff sign-in</h2>
+  {% include 'partials/flash.twig' %}
+  <div class="field">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="username" required value="{{ app.old.email ?? '' }}" autofocus>
+  </div>
+  <div class="field">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+  </div>
+  <button class="button button--primary" type="submit">Sign in</button>
+  <p class="demo-hint">Demo accounts after <code>bin/seed</code>: <code>owner@</code>, <code>sales@</code> or <code>finance@lentera.example.com</code>, password <code>lentera-demo-2026</code>.</p>
+  <p><a href="/inquiry">Planning an event? Send an inquiry instead.</a></p>
+</form>
+{% endblock %}

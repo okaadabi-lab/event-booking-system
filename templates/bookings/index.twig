@@ -1,0 +1,113 @@
+{% extends 'layout/app.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block title %}Bookings{% endblock %}
+{% macro sort_header(label, key, filter, cls) %}
+  {% set active = filter.sort == key %}
+  {% set dir = active ? (filter.direction == 'asc' ? 'desc' : 'asc') : (key in ['created_at', 'total'] ? 'desc' : 'asc') %}
+  <th scope="col" class="{{ cls }}"{% if active %} aria-sort="{{ filter.direction == 'asc' ? 'ascending' : 'descending' }}"{% endif %}>
+    <a class="sort-link" href="/bookings{{ query(filter.toQuery({sort: key, dir: dir, page: null})) }}"{% if active %} aria-current="true"{% endif %}>{{ label }}{% if active %} {{ filter.direction == 'asc' ? '▲' : '▼' }}{% endif %}</a>
+  </th>
+{% endmacro %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Bookings</h1>
+    <p class="page-head__lede">Every inquiry, quote and event. Search by booking code, customer name or phone number.</p>
+  </div>
+  {% if app.can['create-booking'] %}
+    <div class="page-head__actions"><a class="button button--primary" href="/bookings/new">New quote</a></div>
+  {% endif %}
+</div>
+
+<nav class="status-tabs" aria-label="Filter by status">
+  {% set all_count = counts|reduce((carry, n) => carry + n, 0) %}
+  <a href="/bookings{{ query(filter.toQuery({status: null, page: null})) }}"{% if filter.status is null %} aria-current="page"{% endif %}>All<span>{{ all_count }}</span></a>
+  {% for status in statuses %}
+    <a href="/bookings{{ query(filter.toQuery({status: status.value, page: null})) }}"{% if filter.status == status %} aria-current="page"{% endif %}>{{ status.label }}<span>{{ counts[status.value] }}</span></a>
+  {% endfor %}
+</nav>
+
+<form class="filters" method="get" action="/bookings" role="search">
+  {% if filter.status %}<input type="hidden" name="status" value="{{ filter.status.value }}">{% endif %}
+  <input type="hidden" name="sort" value="{{ filter.sort }}">
+  <input type="hidden" name="dir" value="{{ filter.direction }}">
+  <div class="field">
+    <label for="q">Search</label>
+    <input id="q" name="q" type="search" value="{{ filter.search }}" placeholder="BK-2026-0042, Ayu, 0812…">
+  </div>
+  <div class="field">
+    <label for="from">Event from</label>
+    <input id="from" name="from" type="date" value="{{ filter.from|input_date }}">
+  </div>
+  <div class="field">
+    <label for="to">Event to</label>
+    <input id="to" name="to" type="date" value="{{ filter.to|input_date }}">
+  </div>
+  <div class="filters__actions">
+    <button class="button" type="submit">Apply</button>
+    {% if filter.isFiltered %}<a class="button" href="/bookings">Clear</a>{% endif %}
+  </div>
+</form>
+
+{% if rows is empty %}
+  <div class="panel empty">
+    {% if filter.isFiltered %}
+      <h2>No bookings match</h2>
+      <p>Nothing matches these filters. Try a shorter search term or a wider date range.</p>
+      <a class="button" href="/bookings">Clear filters</a>
+    {% else %}
+      <h2>No bookings yet</h2>
+      <p>Inquiries from the public form and quotes created by sales will appear here.</p>
+      {% if app.can['create-booking'] %}<a class="button button--primary" href="/bookings/new">Create the first quote</a>{% endif %}
+    {% endif %}
+  </div>
+{% else %}
+  <div class="table-wrap">
+    <table class="table table--stack">
+      <thead>
+        <tr>
+          {{ _self.sort_header('Booking', 'code', filter, '') }}
+          {{ _self.sort_header('Customer', 'customer', filter, '') }}
+          {{ _self.sort_header('Event date', 'event_date', filter, '') }}
+          <th scope="col">Status</th>
+          {{ _self.sort_header('Total', 'total', filter, 'num') }}
+          {{ _self.sort_header('Received', 'created_at', filter, '') }}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td><a class="table__primary" href="/bookings/{{ row.id }}">{{ row.code }}</a></td>
+            <td>
+              <span class="table__primary">{{ row.customer_name }}</span>
+              <span class="table__sub">{{ row.customer_phone }}</span>
+            </td>
+            <td data-label="Event:">
+              {{ date(row.event_date)|day }}
+              <span class="table__sub">{{ row.location|length > 42 ? row.location|slice(0, 40) ~ '…' : row.location }} · {{ row.guest_count }} guests</span>
+            </td>
+            <td>{{ ui.status(row.status) }}</td>
+            <td class="num" data-label="Total:">
+              {% if row.total > 0 %}
+                <span class="money">{{ row.total|rupiah }}</span>
+                {{ ui.progress(row.progress, 'mini-progress') }}
+              {% else %}
+                <span class="muted">Not priced</span>
+              {% endif %}
+            </td>
+            <td data-label="Received:"><span class="table__sub">{{ date(row.created_at)|short_day }}</span></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <nav class="pagination" aria-label="Pagination">
+    <span>Showing {{ results.firstItemNumber }}–{{ results.lastItemNumber }} of {{ results.total }}</span>
+    <span class="pagination__links">
+      {% if results.hasPrevious %}<a class="button button--small" href="/bookings{{ query(filter.toQuery({page: results.page - 1})) }}" rel="prev">Previous</a>{% endif %}
+      <span>Page {{ results.page }} of {{ results.pageCount }}</span>
+      {% if results.hasNext %}<a class="button button--small" href="/bookings{{ query(filter.toQuery({page: results.page + 1})) }}" rel="next">Next</a>{% endif %}
+    </span>
+  </nav>
+{% endif %}
+{% endblock %}

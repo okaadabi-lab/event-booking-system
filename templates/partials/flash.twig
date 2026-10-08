@@ -1,0 +1,7 @@
+{% if app.flash is not empty %}
+<div class="flash-stack" role="status">
+  {% for item in app.flash %}
+    <p class="flash flash--{{ item.type }}">{{ item.message }}</p>
+  {% endfor %}
+</div>
+{% endif %}

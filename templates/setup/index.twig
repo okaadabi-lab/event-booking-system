@@ -1,0 +1,110 @@
+{% extends 'layout/app.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block title %}Setup{% endblock %}
+{% block content %}
+{% set errors = app.errors %}
+{% set old = app.old %}
+<div class="page-head">
+  <div>
+    <h1>Setup</h1>
+    <p class="page-head__lede">Catalog prices, bookable resources and staff accounts. Price changes apply to new quotes only.</p>
+  </div>
+</div>
+<nav class="tabs" aria-label="Setup sections">
+  {% for key, label in {packages: 'Packages', addons: 'Add-ons', resources: 'Venues & crews', users: 'Staff'} %}
+    {% if key != 'users' or app.can['manage-users'] %}
+      <a href="/setup?tab={{ key }}"{% if tab == key %} aria-current="page"{% endif %}>{{ label }}</a>
+    {% endif %}
+  {% endfor %}
+</nav>
+
+{% if tab == 'packages' %}
+  {% include 'setup/_catalog.twig' with {kind: 'package', rows: packages, action: '/setup/packages', detail_label: 'Description', detail_field: 'description'} %}
+{% elseif tab == 'addons' %}
+  {% include 'setup/_catalog.twig' with {kind: 'addon', rows: addons, action: '/setup/addons', detail_label: 'Unit', detail_field: 'unit_label'} %}
+{% elseif tab == 'resources' %}
+<div class="setup-grid">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Resource</th><th scope="col">Type</th><th scope="col" class="num">Capacity</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead>
+      <tbody>
+      {% for r in resources %}
+        <tr class="{{ r.isActive ? '' : 'inactive' }}">
+          <td class="table__primary">{{ r.name }}{% if not r.isActive %} <span class="muted">(inactive)</span>{% endif %}</td>
+          <td>{{ r.type.label }}</td>
+          <td class="num">{{ r.capacity ? r.capacity|plain_number ~ (r.type.value == 'venue' ? ' guests' : ' people') : '—' }}</td>
+          <td>
+            <details class="disclosure"><summary>Edit<span class="visually-hidden"> {{ r.name }}</span></summary>
+              <form method="post" action="/setup/resources" class="form-grid">
+                {{ ui.csrf(app.csrf) }}
+                <input type="hidden" name="id" value="{{ r.id }}">
+                <div class="field"><label for="rn-{{ r.id }}">Name</label><input id="rn-{{ r.id }}" name="name" type="text" required value="{{ r.name }}"></div>
+                <div class="field"><label for="rc-{{ r.id }}">Capacity</label><input id="rc-{{ r.id }}" name="capacity" type="number" min="1" value="{{ r.capacity }}"></div>
+                <label class="checkbox"><input type="checkbox" name="is_active" value="1"{% if r.isActive %} checked{% endif %}> Bookable</label>
+                <button class="button button--small" type="submit">Save</button>
+              </form>
+            </details>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="muted">No resources yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <form class="panel" method="post" action="/setup/resources" novalidate>
+    <div class="panel__head"><h2>Add a resource</h2></div>
+    <div class="panel__body form-grid">
+      {{ ui.csrf(app.csrf) }}
+      <div class="field span-all"><label for="new-r-name">Name</label><input id="new-r-name" name="name" type="text" required value="{{ old.name ?? '' }}"{{ ui.invalid(errors, 'name') }}>{{ ui.field_error(errors, 'name') }}</div>
+      <div class="field"><label for="new-r-type">Type</label>
+        <select id="new-r-type" name="type"{{ ui.invalid(errors, 'type') }}>{% for t in resource_types %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}</select>{{ ui.field_error(errors, 'type') }}</div>
+      <div class="field"><label for="new-r-cap">Capacity</label><input id="new-r-cap" name="capacity" type="number" min="1" value="{{ old.capacity ?? '' }}"{{ ui.invalid(errors, 'capacity') }}>{{ ui.field_error(errors, 'capacity') }}</div>
+      <div class="span-all"><button class="button button--primary" type="submit">Add resource</button></div>
+    </div>
+  </form>
+</div>
+{% elseif tab == 'users' and app.can['manage-users'] %}
+<div class="setup-grid">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Name</th><th scope="col">Role</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead>
+      <tbody>
+      {% for u in users %}
+        <tr class="{{ u.isActive ? '' : 'inactive' }}">
+          <td><span class="table__primary">{{ u.name }}</span>{% if not u.isActive %} <span class="muted">(deactivated)</span>{% endif %}<span class="table__sub">{{ u.email }}</span></td>
+          <td>{{ u.role.label }}</td>
+          <td>
+            <details class="disclosure"><summary>Edit<span class="visually-hidden"> {{ u.name }}</span></summary>
+              <form method="post" action="/setup/users" class="form-grid">
+                {{ ui.csrf(app.csrf) }}
+                <input type="hidden" name="id" value="{{ u.id }}">
+                <div class="field"><label for="un-{{ u.id }}">Name</label><input id="un-{{ u.id }}" name="name" type="text" required value="{{ u.name }}"></div>
+                <div class="field"><label for="ue-{{ u.id }}">Email</label><input id="ue-{{ u.id }}" name="email" type="email" required value="{{ u.email }}"></div>
+                <div class="field"><label for="ur-{{ u.id }}">Role</label><select id="ur-{{ u.id }}" name="role">{% for r in roles %}<option value="{{ r.value }}"{% if r == u.role %} selected{% endif %}>{{ r.label }}</option>{% endfor %}</select></div>
+                <div class="field"><label for="up-{{ u.id }}">New password</label><input id="up-{{ u.id }}" name="password" type="password" autocomplete="new-password" minlength="12" placeholder="Leave blank to keep"></div>
+                <label class="checkbox"><input type="checkbox" name="is_active" value="1"{% if u.isActive %} checked{% endif %}> Active</label>
+                <button class="button button--small" type="submit">Save</button>
+              </form>
+            </details>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <form class="panel" method="post" action="/setup/users" novalidate>
+    <div class="panel__head"><h2>Add a staff account</h2></div>
+    <div class="panel__body form-grid">
+      {{ ui.csrf(app.csrf) }}
+      <div class="field span-all"><label for="new-u-name">Name</label><input id="new-u-name" name="name" type="text" required value="{{ old.name ?? '' }}"{{ ui.invalid(errors, 'name') }}>{{ ui.field_error(errors, 'name') }}</div>
+      <div class="field span-all"><label for="new-u-email">Email</label><input id="new-u-email" name="email" type="email" required value="{{ old.email ?? '' }}"{{ ui.invalid(errors, 'email') }}>{{ ui.field_error(errors, 'email') }}</div>
+      <div class="field"><label for="new-u-role">Role</label><select id="new-u-role" name="role">{% for r in roles %}<option value="{{ r.value }}"{% if (old.role ?? 'sales') == r.value %} selected{% endif %}>{{ r.label }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="new-u-pw">Password</label><input id="new-u-pw" name="password" type="password" autocomplete="new-password" minlength="12" required{{ ui.invalid(errors, 'password') }}>{{ ui.field_error(errors, 'password') }}</div>
+      <p class="field__hint span-all">Sales: quotes and scheduling. Finance: payments, refunds and exports. Owner: everything, including this page.</p>
+      <div class="span-all"><button class="button button--primary" type="submit">Add account</button></div>
+    </div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

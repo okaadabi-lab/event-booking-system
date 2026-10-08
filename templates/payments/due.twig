@@ -1,0 +1,77 @@
+{% extends 'layout/app.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block title %}Payments due{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Payments due</h1>
+    <p class="page-head__lede">Money still to collect on quoted, confirmed and completed bookings. Balances fall due before the event; overdue rows are listed first.</p>
+  </div>
+  <form class="export-form" method="get" action="/payments/export">
+    <div class="field">
+      <label for="month">Received payments</label>
+      <select id="month" name="month">
+        {% for m in months %}<option value="{{ m|date('Y-m') }}">{{ m|date('F Y') }}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="button" type="submit">Download CSV</button>
+  </form>
+</div>
+
+<dl class="aging">
+  <div class="{{ totals.overdue > 0 ? 'is-risk' : '' }}"><dt>Overdue</dt><dd class="money">{{ totals.overdue|rupiah }}</dd></div>
+  <div><dt>Due in 30 days</dt><dd class="money">{{ totals.due_30|rupiah }}</dd></div>
+  <div><dt>Due later</dt><dd class="money">{{ totals.later|rupiah }}</dd></div>
+  <div><dt>Deposits outstanding</dt><dd class="money">{{ totals.deposits|rupiah }}</dd></div>
+</dl>
+
+{% if receivables is empty %}
+  <div class="panel empty">
+    <h2>Nothing to collect</h2>
+    <p>Every quoted and confirmed booking is paid in full. New quotes will appear here once they are sent.</p>
+  </div>
+{% else %}
+  <div class="table-wrap">
+    <table class="table table--stack">
+      <thead>
+        <tr>
+          <th scope="col">Booking</th>
+          <th scope="col">Event</th>
+          <th scope="col">Stage</th>
+          <th scope="col" class="num">Paid</th>
+          <th scope="col" class="num">Outstanding</th>
+          <th scope="col">Balance due</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in receivables %}
+          {% set b = r.booking %}
+          {% set s = r.schedule %}
+          <tr class="{{ r.overdue ? 'row-overdue' : '' }}">
+            <td>
+              <a class="table__primary" href="/bookings/{{ b.id }}">{{ b.customer.name }}</a>
+              <span class="table__sub">{{ b.code }} · {{ b.customer.phone }}</span>
+            </td>
+            <td data-label="Event:">{{ b.eventDate|day }} {{ ui.status(b.status) }}</td>
+            <td>
+              {% if not s.depositPaid %}
+                <span class="flag flag--warn">Deposit {{ s.depositRemaining|rupiah }} missing</span>
+              {% elseif r.overdue %}
+                <span class="flag flag--risk">{{ r.days_overdue }} {{ r.days_overdue == 1 ? 'day' : 'days' }} overdue</span>
+              {% else %}
+                <span class="flag flag--ok">Deposit paid</span>
+              {% endif %}
+            </td>
+            <td class="num" data-label="Paid:">
+              <span class="money">{{ s.paidNet|rupiah }}</span>
+              {{ ui.progress(s.progressPercent, 'mini-progress') }}
+            </td>
+            <td class="num money" data-label="Outstanding:"><strong>{{ s.outstanding|rupiah }}</strong></td>
+            <td data-label="Due:">{{ s.balanceDueDate|day }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% endblock %}

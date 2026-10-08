@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+<main class="error-page">
+  <div class="error-page__card">
+    <p class="error-page__status">{{ status }}</p>
+    <h1>{{ title }}</h1>
+    <p>{{ message }}</p>
+    <p><a class="button" href="/">Go to the run sheet</a></p>
+    {% if detail %}<pre>{{ detail }}</pre>{% endif %}
+  </div>
+</main>
+</body>
+</html>

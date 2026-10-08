@@ -1,0 +1,280 @@
+{% extends 'layout/app.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block title %}{{ booking.code }}{% endblock %}
+{% block content %}
+{% set b = booking %}
+{% set errors = app.errors %}
+<a class="back-link" href="/bookings">All bookings</a>
+<div class="page-head">
+  <div>
+    <div class="booking-hero">
+      <h1>{{ b.customer.name }}</h1>
+      {{ ui.status(b.status) }}
+      <span class="booking-hero__code">{{ b.code }}</span>
+    </div>
+    <p class="page-head__lede">{{ b.eventDate|day }} · {{ b.location }}</p>
+  </div>
+  <div class="page-head__actions">
+    {% if allowed['edit-quote'] %}<a class="button" href="/bookings/{{ b.id }}/edit">Edit quote</a>{% endif %}
+  </div>
+</div>
+
+<div class="detail">
+  <div class="detail__main">
+    <section class="panel" aria-labelledby="lifecycle-title">
+      <div class="panel__body">
+        <h2 id="lifecycle-title" class="visually-hidden">Lifecycle</h2>
+        {% set stages = ['inquiry', 'quoted', 'confirmed', 'completed'] %}
+        <ol class="lifecycle{{ b.status.value == 'cancelled' ? ' lifecycle--cancelled' : '' }}">
+          {% set index = b.status.value == 'cancelled' ? -1 : (stages|keys|filter(k => stages[k] == b.status.value)|first) %}
+          {% for stage in stages %}
+            <li class="{{ index != -1 and loop.index0 < index ? 'is-done' : '' }} {{ loop.index0 == index ? 'is-current' : '' }}"{% if loop.index0 == index %} aria-current="step"{% endif %}>{{ stage|capitalize }}</li>
+          {% endfor %}
+        </ol>
+        {% if b.status.value == 'cancelled' %}
+          <p class="conflict-box cancel-note">Cancelled: {{ b.cancelReason }}</p>
+        {% endif %}
+      </div>
+      <div class="panel__body panel__body--ruled">
+        <dl class="facts">
+          <div><dt>Customer</dt><dd>{{ b.customer.name }}<br><span class="muted">{{ b.customer.phone }}{% if b.customer.email %}<br>{{ b.customer.email }}{% endif %}</span></dd></div>
+          <div><dt>Guests</dt><dd>{{ b.guestCount|plain_number }}</dd></div>
+          <div><dt>On site</dt><dd>{{ b.window ? b.window.format : 'Not scheduled yet' }}</dd></div>
+          <div><dt>Source</dt><dd>{{ b.source == 'inquiry' ? 'Website inquiry' : 'Created by staff' }}</dd></div>
+        </dl>
+        {% if b.notes %}<p class="booking-notes"><strong>Notes.</strong> {{ b.notes }}</p>{% endif %}
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="quote-title">
+      <div class="panel__head"><h2 id="quote-title">Quote</h2><span class="muted">Deposit {{ b.depositPercent }}%</span></div>
+      <div class="panel__body">
+        {% if items is empty %}
+          <div class="empty">
+            <h2>Nothing quoted yet</h2>
+            <p>This booking came in as an inquiry. Pick a package and add-ons to price it.</p>
+            {% if allowed['edit-quote'] %}<a class="button button--primary" href="/bookings/{{ b.id }}/edit">Build the quote</a>{% endif %}
+          </div>
+        {% else %}
+          <table class="items">
+            <thead><tr><th scope="col">Item</th><th scope="col" class="num">Qty</th><th scope="col" class="num">Unit price</th><th scope="col" class="num">Amount</th></tr></thead>
+            <tbody>
+              {% for item in items %}
+                <tr>
+                  <td>{{ item.name }}{% if item.isPriceOverridden %}<span class="override-note">Catalog price {{ item.catalogPrice|rupiah }}</span>{% endif %}</td>
+                  <td class="num">{{ item.quantity }}</td>
+                  <td class="num money">{{ item.unitPrice|rupiah }}</td>
+                  <td class="num money">{{ item.lineTotal|rupiah }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr><td colspan="3">Subtotal</td><td class="num money">{{ b.subtotal|rupiah }}</td></tr>
+              {% if b.discountAmount > 0 %}
+                <tr><td colspan="3">Discount <span class="muted">({{ b.discountReason }})</span></td><td class="num money">−{{ b.discountAmount|rupiah }}</td></tr>
+              {% endif %}
+              <tr class="total"><td colspan="3">Total</td><td class="num money">{{ b.total|rupiah }}</td></tr>
+            </tfoot>
+          </table>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="activity-title">
+      <div class="panel__head"><h2 id="activity-title">Activity</h2></div>
+      <div class="panel__body">
+        <ol class="timeline">
+          {% for entry in activity %}
+            {% set kind = entry.action == 'status_changed' ? 'is-status' : (entry.action in ['payment_recorded', 'refund_recorded'] ? 'is-money' : (entry.action == 'price_override' ? 'is-alert' : '')) %}
+            <li class="{{ kind }}">
+              <p class="timeline__summary">{{ entry.summary }}</p>
+              <p class="timeline__meta">{{ entry.actorName ?? 'Website' }} · <time datetime="{{ entry.at|date('c') }}">{{ entry.at|stamp }}</time></p>
+              {% if entry.action == 'status_changed' and entry.after.reason is defined %}
+                <p class="timeline__diff">Reason: {{ entry.after.reason }}{% if entry.after.released %} · Released {{ entry.after.released }}{% endif %}</p>
+              {% elseif entry.action == 'price_override' %}
+                <p class="timeline__diff">{{ entry.before.unit_price|rupiah }} → {{ entry.after.unit_price|rupiah }} (catalog {{ entry.after.catalog_price|rupiah }})</p>
+              {% elseif entry.action == 'quote_updated' %}
+                <p class="timeline__diff">{% for c in entry.changes %}{{ c.field|humanize }}: {{ c.from ?: '—' }} → {{ c.to ?: '—' }}{% if not loop.last %}; {% endif %}{% endfor %}</p>
+              {% endif %}
+            </li>
+          {% else %}
+            <li>No activity recorded.</li>
+          {% endfor %}
+        </ol>
+      </div>
+    </section>
+  </div>
+
+  <div class="detail__side">
+    {% if b.total > 0 %}
+    <section class="panel" aria-labelledby="payment-title">
+      <div class="panel__head"><h2 id="payment-title">Payments</h2>
+        {% if schedule.isFullyPaid %}<span class="flag flag--ok">Paid in full</span>{% elseif overdue %}<span class="flag flag--risk">Overdue</span>{% elseif schedule.depositPaid %}<span class="flag flag--ok">Deposit paid</span>{% endif %}
+      </div>
+      <div class="panel__body payment-progress">
+        <div class="payment-progress__figures">
+          <span class="payment-progress__paid money">{{ schedule.paidNet|rupiah }}</span>
+          <span class="muted">of {{ b.total|rupiah }}</span>
+        </div>
+        {% set deposit_x = b.total > 0 ? (schedule.depositAmount * 100 / b.total) : 0 %}
+        <svg class="paybar" viewBox="0 0 100 6" preserveAspectRatio="none" role="img" aria-label="{{ schedule.progressPercent }}% paid, deposit marker at {{ b.depositPercent }}%">
+          <rect class="paybar__bg" width="100" height="6" rx="3"/>
+          <rect class="paybar__fill" width="{{ schedule.progressPercent }}" height="6" rx="3"/>
+          <line class="paybar__deposit" x1="{{ deposit_x }}" x2="{{ deposit_x }}" y1="0" y2="6"/>
+        </svg>
+        <div class="paybar-legend"><span>Deposit {{ schedule.depositAmount|rupiah }}</span><span>Balance due {{ schedule.balanceDueDate|short_day }}</span></div>
+        {% if next_due.stage == 'deposit' %}
+          <p class="next-due{{ overdue ? ' next-due--overdue' : '' }}"><strong>{{ next_due.amount|rupiah }}</strong> deposit still needed before this booking can be confirmed.</p>
+        {% elseif next_due.stage == 'balance' %}
+          <p class="next-due{{ overdue ? ' next-due--overdue' : '' }}"><strong>{{ next_due.amount|rupiah }}</strong> balance {{ overdue ? 'was due' : 'due' }} {{ next_due.due|day }}{{ overdue ? ' (' ~ schedule.daysOverdue(app.today) ~ ' days overdue)' : '' }}.</p>
+        {% endif %}
+        {% if schedule.overpaid > 0 %}<p class="next-due next-due--overdue">Received {{ schedule.overpaid|rupiah }} more than the total. Record a refund.</p>{% endif %}
+
+        {% if payments is not empty %}
+          <ul class="ledger">
+            {% for p in payments %}
+              <li class="{{ p.kind == 'refund' ? 'is-refund' : '' }}">
+                <span>{{ p.kind == 'refund' ? 'Refund' : 'Payment' }} · {{ date(p.paid_at)|stamp }}<br><span class="muted">{{ p.method|humanize }}{% if p.reference %} · {{ p.reference }}{% endif %} · {{ p.recorded_by_name }}</span>{% if p.note %}<br><span class="muted">{{ p.note }}</span>{% endif %}</span>
+                <span class="money">{{ p.kind == 'refund' ? '−' : '' }}{{ p.amount|rupiah }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+
+        {% if allowed['record-payment'] or allowed['record-refund'] %}
+          <details class="disclosure"{% if errors.amount is defined or errors.paid_at is defined or errors.note is defined %} open{% endif %}>
+            <summary>Record a payment or refund</summary>
+            <form method="post" action="/bookings/{{ b.id }}/payments" class="form-grid form-grid--2" novalidate>
+              {{ ui.csrf(app.csrf) }}
+              <div class="field">
+                <label for="kind">Type</label>
+                <select id="kind" name="kind">
+                  {% if allowed['record-payment'] %}<option value="payment"{% if (app.old.kind ?? '') == 'payment' %} selected{% endif %}>Payment received</option>{% endif %}
+                  {% if allowed['record-refund'] %}<option value="refund"{% if (app.old.kind ?? '') == 'refund' %} selected{% endif %}>Refund to customer</option>{% endif %}
+                </select>
+              </div>
+              <div class="field">
+                <label for="amount">Amount</label>
+                <div class="input-money"><span>Rp</span><input id="amount" name="amount" type="text" inputmode="numeric" value="{{ app.old.amount ?? (next_due.amount > 0 ? next_due.amount : '') }}"{{ ui.invalid(errors, 'amount') }}></div>
+                {{ ui.field_error(errors, 'amount') }}
+              </div>
+              <div class="field">
+                <label for="method">Method</label>
+                <select id="method" name="method">
+                  {% for m in methods %}<option value="{{ m.value }}"{% if (app.old.method ?? '') == m.value %} selected{% endif %}>{{ m.label }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="field">
+                <label for="paid_at">Paid at</label>
+                <input id="paid_at" name="paid_at" type="datetime-local" value="{{ app.old.paid_at ?? app.today|input_datetime }}" max="{{ app.today|input_datetime }}"{{ ui.invalid(errors, 'paid_at') }}>
+                {{ ui.field_error(errors, 'paid_at') }}
+              </div>
+              <div class="field">
+                <label for="reference">Reference</label>
+                <input id="reference" name="reference" type="text" maxlength="100" placeholder="Transfer ref" value="{{ app.old.reference ?? '' }}">
+              </div>
+              <div class="field">
+                <label for="note">Note</label>
+                <input id="note" name="note" type="text" maxlength="255" placeholder="Required for refunds" value="{{ app.old.note ?? '' }}"{{ ui.invalid(errors, 'note') }}>
+                {{ ui.field_error(errors, 'note') }}
+              </div>
+              <div class="span-all"><button class="button button--primary" type="submit">Record</button></div>
+            </form>
+          </details>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="panel" aria-labelledby="resources-title">
+      <div class="panel__head"><h2 id="resources-title">Venue &amp; crew</h2><span class="muted">{{ buffer_minutes }} min changeover</span></div>
+      <div class="panel__body">
+        {% if conflicts is not empty %}
+          <div class="conflict-box" role="alert">
+            <strong>Scheduling conflict.</strong>
+            {% for c in conflicts %}{{ c.resourceName }} is also held by <a href="/bookings/{{ c.bookingId }}">{{ c.bookingCode }}</a> ({{ c.window.format }}).{% endfor %}
+          </div>
+        {% endif %}
+        {% if assignments is empty %}
+          <p class="muted">Nothing assigned. {{ b.window ? 'Assign a venue or crew to hold the slot.' : 'Set setup and teardown times in the quote first.' }}</p>
+        {% else %}
+          <ul class="resource-list">
+            {% for a in assignments %}
+              <li>
+                <span><strong>{{ a.resource.name }}</strong><br><span class="resource-list__type">{{ a.resource.type.label }}{% if a.assignedByName %} · by {{ a.assignedByName }}{% endif %}</span></span>
+                {% if allowed['assign-resources'] %}
+                  <form method="post" action="/bookings/{{ b.id }}/resources/{{ a.resource.id }}/release">
+                    {{ ui.csrf(app.csrf) }}
+                    <button class="button button--small" type="submit">Release<span class="visually-hidden"> {{ a.resource.name }}</span></button>
+                  </form>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% if allowed['assign-resources'] and b.window and available_resources is not empty %}
+          <form class="inline-form" method="post" action="/bookings/{{ b.id }}/resources">
+            {{ ui.csrf(app.csrf) }}
+            <label class="visually-hidden" for="resource_id">Resource to assign</label>
+            <select id="resource_id" name="resource_id">
+              {% for r in available_resources %}<option value="{{ r.id }}">{{ r.name }} ({{ r.type.label|lower }})</option>{% endfor %}
+            </select>
+            <button class="button" type="submit">Assign</button>
+          </form>
+        {% endif %}
+      </div>
+    </section>
+
+    {% set can_any = allowed['confirm-booking'] or allowed['complete-booking'] or allowed['cancel-booking'] or (allowed['edit-quote'] and b.status.value == 'inquiry') %}
+    {% if can_any %}
+    <section class="panel" aria-labelledby="actions-title">
+      <div class="panel__head"><h2 id="actions-title">Next step</h2></div>
+      <div class="panel__body actions-stack">
+        {% if allowed['edit-quote'] and b.status.value == 'inquiry' %}
+          <form method="post" action="/bookings/{{ b.id }}/quote">
+            {{ ui.csrf(app.csrf) }}
+            <ul class="checklist">
+              <li class="{{ 'add a package to the quote' in checklist.quote ? '' : 'is-met' }}">Package selected</li>
+              <li class="{{ 'set the setup and teardown times' in checklist.quote ? '' : 'is-met' }}">Setup and teardown times set</li>
+            </ul>
+            <button class="button button--primary" type="submit"{% if checklist.quote is not empty %} aria-disabled="true"{% endif %}>Send as quote</button>
+          </form>
+        {% endif %}
+        {% if allowed['confirm-booking'] %}
+          <form method="post" action="/bookings/{{ b.id }}/confirm">
+            {{ ui.csrf(app.csrf) }}
+            <ul class="checklist">
+              <li class="{{ schedule.depositPaid ? 'is-met' : '' }}">Deposit of {{ schedule.depositAmount|rupiah }} paid</li>
+              <li class="{{ assignments is not empty ? 'is-met' : '' }}">Venue or crew assigned</li>
+              <li class="{{ conflicts is empty ? 'is-met' : '' }}">No scheduling conflicts</li>
+            </ul>
+            <button class="button button--primary" type="submit"{% if checklist.confirm is not empty %} aria-disabled="true"{% endif %}>Confirm booking</button>
+          </form>
+        {% endif %}
+        {% if allowed['complete-booking'] %}
+          <form method="post" action="/bookings/{{ b.id }}/complete">
+            {{ ui.csrf(app.csrf) }}
+            {% if checklist.complete is not empty %}<p class="muted">Can be completed after {{ b.completableFrom|stamp }}.</p>{% endif %}
+            <button class="button" type="submit"{% if checklist.complete is not empty %} aria-disabled="true"{% endif %}>Mark as completed</button>
+          </form>
+        {% endif %}
+        {% if allowed['cancel-booking'] %}
+          <details class="disclosure"{% if (app.old.cancel_reason ?? null) is not null %} open{% endif %}>
+            <summary>Cancel this booking</summary>
+            <form method="post" action="/bookings/{{ b.id }}/cancel">
+              {{ ui.csrf(app.csrf) }}
+              <div class="field">
+                <label for="cancel_reason">Reason</label>
+                <textarea id="cancel_reason" name="cancel_reason" required minlength="5" maxlength="500">{{ app.old.cancel_reason ?? '' }}</textarea>
+                <p class="field__hint">Releases {{ assignments is empty ? 'nothing' : assignments|map(a => a.resource.name)|join(', ') }}. Refunds are recorded separately by finance.</p>
+              </div>
+              <button class="button button--danger" type="submit">Cancel booking</button>
+            </form>
+          </details>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

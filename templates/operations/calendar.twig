@@ -1,0 +1,78 @@
+{% extends 'layout/app.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block title %}Resource calendar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Resource calendar</h1>
+    <p class="page-head__lede">Each row is a hall or crew, each column a day. Empty cells are free. Bars include setup and teardown, so an evening reception that starts setting up the night before covers both days.</p>
+  </div>
+  <div class="cal-nav">
+    <a class="button button--small" href="/calendar?month={{ previous|date('Y-m') }}" aria-label="Previous month">Prev</a>
+    <h2>{{ month|date('F Y') }}</h2>
+    <a class="button button--small" href="/calendar?month={{ next|date('Y-m') }}" aria-label="Next month">Next</a>
+  </div>
+</div>
+
+<div class="cal-legend">
+  <span><i class="swatch swatch--confirmed"></i>Confirmed</span>
+  <span><i class="swatch swatch--quoted"></i>Quoted, held</span>
+  <span><i class="swatch swatch--inquiry"></i>Inquiry, tentative</span>
+  <span><i class="swatch swatch--completed"></i>Completed</span>
+  <span><i class="swatch swatch--free"></i>Free</span>
+</div>
+
+{% if grid.rows is empty %}
+  <div class="panel empty">
+    <h2>No resources yet</h2>
+    <p>Add your halls and decoration crews in Setup to see their availability here.</p>
+    {% if app.can['manage-catalog'] %}<a class="button" href="/setup?tab=resources">Add resources</a>{% endif %}
+  </div>
+{% else %}
+<div class="cal-scroll" tabindex="0" role="region" aria-label="Resource occupancy for {{ month|date('F Y') }}">
+  <table class="cal">
+    <caption class="visually-hidden">Bookings holding each resource per day in {{ month|date('F Y') }}</caption>
+    <thead>
+      <tr>
+        <th class="cal__resource" scope="col">Resource</th>
+        {% for day in grid.days %}
+          {% set weekend = day|date('N') >= 6 %}
+          {% set today = day|input_date == app.today|input_date %}
+          <th scope="col" class="{{ weekend ? 'is-weekend' : '' }} {{ today ? 'is-today' : '' }}"{% if today %} aria-current="date"{% endif %}>{{ day|date('D')|slice(0, 2) }}<b>{{ day|date('j') }}</b></th>
+        {% endfor %}
+      </tr>
+    </thead>
+    {% set current_type = null %}
+    <tbody>
+    {% for row in grid.rows %}
+      {% if row.resource.type.value != current_type %}
+        {% set current_type = row.resource.type.value %}
+        <tr class="cal__group"><th colspan="{{ grid.days|length + 1 }}" scope="rowgroup">{{ current_type == 'venue' ? 'Halls' : 'Decoration crews' }}</th></tr>
+      {% endif %}
+      <tr>
+        <th class="cal__resource" scope="row">
+          <strong>{{ row.resource.name }}</strong>
+          <span class="cal__util">{{ row.busy_days }} of {{ grid.days|length }} days booked</span>
+        </th>
+        {% for cell in row.cells %}
+          {% set day = grid.days[loop.index0] %}
+          {% set weekend = day|date('N') >= 6 %}
+          {% set today = day|input_date == app.today|input_date %}
+          <td class="{{ weekend ? 'is-weekend' : '' }} {{ today ? 'is-today' : '' }}">
+            {% for hold in cell %}
+              <a class="cal__hold cal__hold--{{ hold.status }}{{ hold.starts ? ' is-start' : '' }}{{ hold.ends ? ' is-end' : '' }}"
+                 href="/bookings/{{ hold.booking_id }}"
+                 title="{{ hold.code }} · {{ hold.customer }} · {{ hold.time }}">
+                <span class="visually-hidden">{{ row.resource.name }}, {{ day|day }}: {{ hold.code }} {{ hold.customer }} {{ hold.time }} ({{ hold.status }})</span>
+                {% if hold.starts or day|date('j') == 1 %}<span aria-hidden="true">{{ hold.customer|split(' ')|first }}</span>{% endif %}
+              </a>
+            {% endfor %}
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

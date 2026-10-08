@@ -1,0 +1,43 @@
+{% extends 'layout/base.twig' %}
+{% import 'partials/ui.twig' as ui %}
+{% block body %}
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead">
+  <div class="masthead__inner">
+    <a class="brand" href="/">{{ ui.lantern(26) }}<span>{{ app.name }}</span></a>
+    <nav class="nav" aria-label="Main">
+      {% set links = [] %}
+      {% if app.can['view-bookings'] %}
+        {% set links = links|merge([
+          {href: '/today', label: 'Run sheet'},
+          {href: '/calendar', label: 'Calendar'},
+          {href: '/bookings', label: 'Bookings'},
+        ]) %}
+      {% endif %}
+      {% if app.can['view-finance'] %}
+        {% set links = links|merge([{href: '/payments', label: 'Payments'}]) %}
+      {% endif %}
+      {% if app.can['manage-catalog'] %}
+        {% set links = links|merge([{href: '/setup', label: 'Setup'}]) %}
+      {% endif %}
+      {% for link in links %}
+        <a href="{{ link.href }}"{% if app.path == link.href or app.path starts with link.href ~ '/' %} aria-current="page"{% endif %}>{{ link.label }}</a>
+      {% endfor %}
+    </nav>
+    <div class="account">
+      <div class="account__who">
+        <strong>{{ app.user.name }}</strong>
+        <span>{{ app.user.role.label }}</span>
+      </div>
+      <form method="post" action="/logout">
+        <input type="hidden" name="_csrf" value="{{ app.csrf }}">
+        <button type="submit">Sign out</button>
+      </form>
+    </div>
+  </div>
+</header>
+<main id="main" class="page">
+  {% include 'partials/flash.twig' %}
+  {% block content %}{% endblock %}
+</main>
+{% endblock %}
