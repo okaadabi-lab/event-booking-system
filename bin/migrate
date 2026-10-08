@@ -1,0 +1,33 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Support\Config;
+use App\Support\Database;
+use App\Support\Migrator;
+
+$config = require dirname(__DIR__) . '/config/bootstrap.php';
+assert($config instanceof Config);
+
+$fresh = in_array('--fresh', $argv, true);
+if ($fresh && $config->isProduction()) {
+    fwrite(STDERR, "Refusing to drop tables with APP_ENV=production.\n");
+    exit(1);
+}
+
+$migrator = new Migrator(Database::fromConfig($config), dirname(__DIR__) . '/database/migrations');
+try {
+    if ($fresh) {
+        $migrator->dropAllTables();
+        echo "Dropped all tables in {$config->dbName}.\n";
+    }
+    $ran = $migrator->migrate();
+} catch (PDOException $e) {
+    fwrite(STDERR, 'Migration failed: ' . $e->getMessage() . "\n");
+    exit(1);
+}
+
+echo $ran === []
+    ? "Nothing to migrate; {$config->dbName} is up to date.\n"
+    : 'Applied: ' . implode(', ', $ran) . "\n";
