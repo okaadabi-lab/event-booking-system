@@ -57,23 +57,23 @@
           </div>
         {% else %}
           <table class="items">
-            <thead><tr><th scope="col">Item</th><th scope="col" class="num">Qty</th><th scope="col" class="num">Unit price</th><th scope="col" class="num">Amount</th></tr></thead>
+            <thead><tr><th scope="col">Item</th><th scope="col" class="num">Qty</th><th scope="col" class="num col-unit">Unit price</th><th scope="col" class="num">Amount</th></tr></thead>
             <tbody>
               {% for item in items %}
                 <tr>
                   <td>{{ item.name }}{% if item.isPriceOverridden %}<span class="override-note">Catalog price {{ item.catalogPrice|rupiah }}</span>{% endif %}</td>
                   <td class="num">{{ item.quantity }}</td>
-                  <td class="num money">{{ item.unitPrice|rupiah }}</td>
+                  <td class="num money col-unit">{{ item.unitPrice|rupiah }}</td>
                   <td class="num money">{{ item.lineTotal|rupiah }}</td>
                 </tr>
               {% endfor %}
             </tbody>
             <tfoot>
-              <tr><td colspan="3">Subtotal</td><td class="num money">{{ b.subtotal|rupiah }}</td></tr>
+              <tr><td colspan="2">Subtotal</td><td class="col-unit"></td><td class="num money">{{ b.subtotal|rupiah }}</td></tr>
               {% if b.discountAmount > 0 %}
-                <tr><td colspan="3">Discount <span class="muted">({{ b.discountReason }})</span></td><td class="num money">−{{ b.discountAmount|rupiah }}</td></tr>
+                <tr><td colspan="2">Discount <span class="muted">({{ b.discountReason }})</span></td><td class="col-unit"></td><td class="num money">−{{ b.discountAmount|rupiah }}</td></tr>
               {% endif %}
-              <tr class="total"><td colspan="3">Total</td><td class="num money">{{ b.total|rupiah }}</td></tr>
+              <tr class="total"><td colspan="2">Total</td><td class="col-unit"></td><td class="num money">{{ b.total|rupiah }}</td></tr>
             </tfoot>
           </table>
         {% endif %}
