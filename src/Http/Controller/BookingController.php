@@ -15,7 +15,6 @@ use App\Booking\BookingStatus;
 use App\Booking\QuoteForm;
 use App\Booking\TransitionGuards;
 use App\Catalog\CatalogRepository;
-use App\Customer\CustomerRepository;
 use App\Http\RequestContext;
 use App\Http\View;
 use App\Payment\PaymentMethod;
@@ -34,7 +33,6 @@ final class BookingController
         private readonly BookingRepository $bookings,
         private readonly BookingService $service,
         private readonly CatalogRepository $catalog,
-        private readonly CustomerRepository $customers,
         private readonly ResourceRepository $resources,
         private readonly ResourceScheduler $scheduler,
         private readonly PaymentRepository $payments,
@@ -84,8 +82,7 @@ final class BookingController
         $form = QuoteForm::fromInput(RequestContext::body($request), true);
         assert($form->customer !== null);
 
-        $customer = $this->customers->findOrCreate($form->customer['name'], $form->customer['phone'], $form->customer['email']);
-        $id = $this->service->createQuote($customer, $form->request, $user);
+        $id = $this->service->createQuote($form->customer, $form->request, $user);
         $booking = $this->find($id, $request);
 
         RequestContext::session($request)->flash(

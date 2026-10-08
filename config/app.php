@@ -16,7 +16,6 @@ use Slim\App;
 // dispatch requests through exactly the same middleware stack.
 return static function (Config $config, ?Container $container = null): App {
     $container ??= (require __DIR__ . '/container.php')($config);
-    date_default_timezone_set($config->timezone);
 
     $app = new App($container->make(ResponseFactoryInterface::class), $container);
 

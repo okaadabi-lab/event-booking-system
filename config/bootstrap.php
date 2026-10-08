@@ -20,5 +20,9 @@ return (static function (): Config {
         }
     }
 
-    return Config::fromEnvironment($env, $root);
+    $config = Config::fromEnvironment($env, $root);
+    // DATETIME columns carry no zone; PHP must read them in the business timezone.
+    date_default_timezone_set($config->timezone);
+
+    return $config;
 })();

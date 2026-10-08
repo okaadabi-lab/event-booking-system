@@ -10,7 +10,7 @@ use App\Auth\Ability;
 use App\Auth\Policy;
 use App\Auth\User;
 use App\Catalog\CatalogRepository;
-use App\Customer\Customer;
+use App\Customer\CustomerRepository;
 use App\Resource\ResourceConflict;
 use App\Resource\ResourceScheduler;
 use App\Support\Clock;
@@ -27,6 +27,7 @@ final class BookingService
         private readonly Database $db,
         private readonly BookingRepository $bookings,
         private readonly CatalogRepository $catalog,
+        private readonly CustomerRepository $customers,
         private readonly ResourceScheduler $scheduler,
         private readonly ActivityLog $activity,
         private readonly Policy $policy,
@@ -36,11 +37,22 @@ final class BookingService
     ) {
     }
 
-    public function createQuote(Customer $customer, QuoteRequest $request, User $actor): int
+    /**
+     * The customer is matched or created inside the same transaction, so a quote
+     * that fails (for example on a resource conflict) leaves no orphan customer.
+     *
+     * @param array{name: string, phone: string, email: ?string} $customerDetails
+     */
+    public function createQuote(array $customerDetails, QuoteRequest $request, User $actor): int
     {
         $this->policy->authorize($actor, Ability::CreateBooking);
 
-        return $this->db->transactional(function () use ($customer, $request, $actor): int {
+        return $this->db->transactional(function () use ($customerDetails, $request, $actor): int {
+            $customer = $this->customers->findOrCreate(
+                $customerDetails['name'],
+                $customerDetails['phone'],
+                $customerDetails['email']
+            );
             $now = $this->clock->now();
             $lines = $this->resolveLines($request, [], $actor);
             $totals = QuoteCalculator::calculate($lines, $request->discount);

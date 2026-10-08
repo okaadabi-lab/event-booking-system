@@ -11,7 +11,6 @@ use App\Booking\BookingRepository;
 use App\Booking\BookingService;
 use App\Booking\QuoteRequest;
 use App\Catalog\CatalogRepository;
-use App\Customer\CustomerRepository;
 use App\Inquiry\InquiryForm;
 use App\Inquiry\InquiryService;
 use App\Payment\PaymentKind;
@@ -237,7 +236,6 @@ final class DemoSeeder
         $bookings = $this->container->make(BookingService::class);
         $payments = $this->container->make(PaymentService::class);
         $repo = $this->container->make(BookingRepository::class);
-        $customers = $this->container->make(CustomerRepository::class);
         $scheduler = $this->container->make(ResourceScheduler::class);
         $resources = $this->container->make(ResourceRepository::class);
         $sales = $this->users['sales'];
@@ -265,7 +263,7 @@ final class DemoSeeder
 
             $customerIndex = $i % count(self::CUSTOMERS);
             [$name, $email] = self::CUSTOMERS[$customerIndex];
-            $customer = $customers->findOrCreate($name, sprintf('+628120000%04d', 1000 + $customerIndex * 37), $email);
+            $customer = ['name' => $name, 'phone' => sprintf('+628120000%04d', 1000 + $customerIndex * 37), 'email' => $email];
             // Early "setup hours" in the spec mean the crew starts the evening before.
             $setupStart = $setupHour <= 6 ? $eventDate->modify('-1 day')->setTime(20, 0) : $eventDate->setTime($setupHour, 0);
             $window = new TimeWindow($setupStart, $eventDate->setTime($teardownHour, 0));
