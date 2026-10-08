@@ -1,0 +1,18 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Http\Session\SessionStore;
+use App\Support\Config;
+use App\Support\RateLimiter;
+
+$config = require dirname(__DIR__) . '/config/bootstrap.php';
+assert($config instanceof Config);
+
+// Run from cron, e.g. hourly: removes idle sessions and rate-limit hits older than a day.
+$container = (require dirname(__DIR__) . '/config/container.php')($config);
+$container->make(SessionStore::class)->pruneExpired();
+$container->make(RateLimiter::class)->prune(24 * 3600);
+
+echo "Pruned expired sessions and old rate-limit entries.\n";
