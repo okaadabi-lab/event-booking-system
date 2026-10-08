@@ -19,7 +19,7 @@
     <input id="password" name="password" type="password" autocomplete="current-password" required>
   </div>
   <button class="button button--primary" type="submit">Sign in</button>
-  <p class="demo-hint">Demo accounts after <code>bin/seed</code>: <code>owner@</code>, <code>sales@</code> or <code>finance@lentera.example.com</code>, password <code>lentera-demo-2026</code>.</p>
+  {% if show_demo_accounts %}<p class="demo-hint">Demo accounts after <code>bin/seed</code>: <code>owner@</code>, <code>sales@</code> or <code>finance@lentera.example.com</code>, password <code>lentera-demo-2026</code>.</p>{% endif %}
   <p><a href="/inquiry">Planning an event? Send an inquiry instead.</a></p>
 </form>
 {% endblock %}

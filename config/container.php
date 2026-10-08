@@ -175,6 +175,7 @@ return static function (Config $config): Container {
         $c->make(View::class),
         $c->make(Authenticator::class),
         $c->make(LoggerInterface::class),
+        !$config->isProduction(),
     ));
     $c->set(InquiryController::class, fn (Container $c) => new InquiryController(
         $c->make(View::class),

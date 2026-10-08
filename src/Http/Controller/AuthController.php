@@ -18,6 +18,7 @@ final class AuthController
         private readonly View $view,
         private readonly Authenticator $auth,
         private readonly LoggerInterface $logger,
+        private readonly bool $showDemoAccounts,
     ) {
     }
 
@@ -27,7 +28,9 @@ final class AuthController
             return View::redirect($response, '/');
         }
 
-        return $this->view->render($request, $response, 'auth/login.twig');
+        return $this->view->render($request, $response, 'auth/login.twig', [
+            'show_demo_accounts' => $this->showDemoAccounts,
+        ]);
     }
 
     public function login(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

@@ -201,7 +201,7 @@ composer test      # PHPUnit: unit + integration + HTTP (needs the _test databas
 composer lint      # PHPCS (PSR-12) + PHPStan level 8
 ```
 
-The suite has 227 tests:
+The suite has 228 tests:
 
 - **Unit:** pricing and totals, money parsing, the payment schedule and overdue boundaries, the full state transition table, the role × ability matrix, time windows, and CSV escaping.
 - **Integration:** runs against real MySQL/MariaDB. It covers conflict detection including the buffer boundary and edge-touching windows, a second connection holding the row lock, cancellation releasing resources, price snapshots, the payment rules, and migrations applying cleanly to an empty database.

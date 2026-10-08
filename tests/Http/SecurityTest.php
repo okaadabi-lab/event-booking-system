@@ -100,6 +100,16 @@ final class SecurityTest extends HttpTestCase
         self::assertStringNotContainsString('#0', $body);
     }
 
+    public function testDemoCredentialsAreHiddenInProduction(): void
+    {
+        self::assertStringContainsString('lentera-demo-2026', (string) $this->get('/login')->getBody());
+
+        $config = TestConfig::get()->with(['env' => 'production', 'debug' => false]);
+        $this->app = (require dirname(__DIR__, 2) . '/config/app.php')($config, $this->buildContainer($config));
+
+        self::assertStringNotContainsString('lentera-demo-2026', (string) $this->get('/login')->getBody());
+    }
+
     public function testConfigNeverEnablesDebugInProduction(): void
     {
         $config = Config::fromEnvironment(['APP_ENV' => 'production', 'APP_DEBUG' => 'true'], '/tmp');
