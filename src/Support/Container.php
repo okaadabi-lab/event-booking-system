@@ -45,9 +45,7 @@ final class Container implements ContainerInterface
             return $this->instances[$id];
         }
         if (!isset($this->factories[$id])) {
-            throw new class ("No service registered for \"$id\".") extends RuntimeException implements
-                \Psr\Container\NotFoundExceptionInterface {
-            };
+            throw new ServiceNotFound("No service registered for \"$id\".");
         }
 
         return $this->instances[$id] = ($this->factories[$id])($this);

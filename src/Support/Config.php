@@ -8,6 +8,8 @@ use InvalidArgumentException;
 
 final class Config
 {
+    public const LOG_LEVELS = ['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'];
+
     private function __construct(
         public readonly string $rootDir,
         public readonly string $appName,
@@ -49,6 +51,11 @@ final class Config
             throw new InvalidArgumentException('SESSION_SECURE_COOKIE must be auto, true or false.');
         }
 
+        $logLevel = strtolower($read('LOG_LEVEL', 'info'));
+        if (!in_array($logLevel, self::LOG_LEVELS, true)) {
+            throw new InvalidArgumentException('LOG_LEVEL must be one of ' . implode(', ', self::LOG_LEVELS) . '.');
+        }
+
         $logPath = $read('LOG_PATH', 'storage/logs/app.log');
         if (!str_starts_with($logPath, '/') && $logPath !== 'php://stderr') {
             $logPath = $rootDir . '/' . $logPath;
@@ -68,7 +75,7 @@ final class Config
             dbPassword: $env['DB_PASSWORD'] ?? '',
             sessionSecureCookie: $secure,
             logPath: $logPath,
-            logLevel: $read('LOG_LEVEL', 'info'),
+            logLevel: $logLevel,
             depositPercent: self::intInRange($read('DEPOSIT_PERCENT', '30'), 'DEPOSIT_PERCENT', 0, 100),
             balanceDueDaysBeforeEvent: self::intInRange(
                 $read('BALANCE_DUE_DAYS_BEFORE_EVENT', '14'),

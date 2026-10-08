@@ -12,4 +12,11 @@
     <arg name="cache" value=".phpcs-cache"/>
     <arg value="sp"/>
     <rule ref="PSR12"/>
+    <!-- PSR-12 calls 120 a soft limit; SQL strings and match arms read better slightly longer. -->
+    <rule ref="Generic.Files.LineLength">
+        <properties>
+            <property name="lineLimit" value="140"/>
+            <property name="absoluteLineLimit" value="0"/>
+        </properties>
+    </rule>
 </ruleset>

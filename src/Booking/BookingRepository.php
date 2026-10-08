@@ -154,11 +154,11 @@ final class BookingRepository
         );
 
         $sortColumn = match ($filter->sort) {
-            'created_at' => 'b.created_at',
+            'event_date' => 'b.event_date',
             'total' => 'b.total',
             'code' => 'b.code',
             'customer' => 'c.name',
-            default => 'b.event_date',
+            default => 'b.created_at',
         };
         $direction = $filter->direction === 'desc' ? 'DESC' : 'ASC';
         $pageCount = max(1, (int) ceil($total / BookingFilter::PER_PAGE));

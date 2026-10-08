@@ -52,7 +52,10 @@ final class QuoteForm
 
         $window = null;
         if (($setupStart === null) !== ($teardownEnd === null) && !$input->hasError('setup_start') && !$input->hasError('teardown_end')) {
-            $input->addError($setupStart === null ? 'setup_start' : 'teardown_end', 'Set both the setup start and the teardown end, or neither.');
+            $input->addError(
+                $setupStart === null ? 'setup_start' : 'teardown_end',
+                'Set both the setup start and the teardown end, or neither.'
+            );
         } elseif ($setupStart !== null && $teardownEnd !== null) {
             try {
                 $window = new TimeWindow($setupStart, $teardownEnd);
@@ -90,6 +93,11 @@ final class QuoteForm
                 continue;
             }
             $overrides[$key] = $amount;
+        }
+
+        $packagePrice = $input->money('package_price', 'Package unit price', false);
+        if ($packagePrice !== null && $packageId !== null) {
+            $overrides['package:' . $packageId] = $packagePrice;
         }
 
         $resourceIds = [];

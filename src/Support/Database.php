@@ -148,7 +148,7 @@ final class Database
     public static function inList(string $prefix, array $values): array
     {
         $params = [];
-        foreach (array_values($values) as $i => $value) {
+        foreach ($values as $i => $value) {
             $params[$prefix . $i] = $value;
         }
 

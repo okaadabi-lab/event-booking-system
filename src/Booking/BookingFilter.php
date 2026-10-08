@@ -16,13 +16,14 @@ final class BookingFilter
         public readonly ?DateTimeImmutable $from = null,
         public readonly ?DateTimeImmutable $to = null,
         public readonly string $search = '',
-        public readonly string $sort = 'event_date',
-        public readonly string $direction = 'asc',
+        public readonly string $sort = 'created_at',
+        public readonly string $direction = 'desc',
         public readonly int $page = 1,
     ) {
     }
 
     /**
+     * Newest first by default: the list doubles as the inbox for new inquiries.
      * Lenient by design: unknown or malformed values fall back to defaults so a
      * hand-edited URL shows the list instead of an error.
      *
@@ -36,7 +37,7 @@ final class BookingFilter
 
             return $date !== false && $date->format('Y-m-d') === $value ? $date : null;
         };
-        $sort = in_array($read('sort'), self::SORTS, true) ? $read('sort') : 'event_date';
+        $sort = in_array($read('sort'), self::SORTS, true) ? $read('sort') : 'created_at';
 
         return new self(
             BookingStatus::tryFrom($read('status')),
@@ -44,7 +45,7 @@ final class BookingFilter
             $date($read('to')),
             mb_substr($read('q'), 0, 100),
             $sort,
-            $read('dir') === 'desc' ? 'desc' : 'asc',
+            $read('dir') === 'asc' ? 'asc' : 'desc',
             max(1, min(10_000, (int) $read('page'))),
         );
     }
@@ -69,8 +70,8 @@ final class BookingFilter
             $query,
             static fn ($value, $key): bool => $value !== null && $value !== ''
                 && !($key === 'page' && (int) $value === 1)
-                && !($key === 'sort' && $value === 'event_date')
-                && !($key === 'dir' && $value === 'asc'),
+                && !($key === 'sort' && $value === 'created_at')
+                && !($key === 'dir' && $value === 'desc'),
             ARRAY_FILTER_USE_BOTH
         );
     }
