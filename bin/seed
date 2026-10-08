@@ -1,0 +1,18 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Console\DemoSeeder;
+use App\Support\Config;
+
+$config = require dirname(__DIR__) . '/config/bootstrap.php';
+assert($config instanceof Config);
+
+if ($config->isProduction()) {
+    fwrite(STDERR, "Refusing to load demo data with APP_ENV=production.\n");
+    exit(1);
+}
+
+$summary = DemoSeeder::run($config);
+echo $summary;
