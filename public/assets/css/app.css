@@ -1087,7 +1087,8 @@ textarea:focus-visible {
 }
 
 .cal__hold:not(.is-end) {
-  margin-right: 0;
+  /* Reach over the cell border so a multi-day hold reads as one bar. */
+  margin-right: -1px;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -2301,6 +2302,42 @@ details.disclosure[open] > summary {
 
   .export-form {
     flex-wrap: wrap;
+  }
+
+  /* Add-on rows: name on its own line, then price, quantity and amount. */
+  .addon-table thead {
+    display: none;
+  }
+
+  .addon-table,
+  .addon-table tbody {
+    display: block;
+  }
+
+  .addon-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .addon-table td {
+    border: 0;
+    padding: 0;
+  }
+
+  .addon-table td:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .addon-table td:nth-child(2) {
+    text-align: left;
+  }
+
+  .addon-table .price-input {
+    margin-left: 0;
   }
 }
 

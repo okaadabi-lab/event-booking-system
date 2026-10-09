@@ -54,11 +54,12 @@
             </td>
             <td data-label="Event:">{{ b.eventDate|day }} {{ ui.status(b.status) }}</td>
             <td>
+              {% if r.overdue %}
+                <span class="flag flag--risk">{{ r.days_overdue }} {{ r.days_overdue == 1 ? 'day' : 'days' }} overdue</span>
+              {% endif %}
               {% if not s.depositPaid %}
                 <span class="flag flag--warn">Deposit {{ s.depositRemaining|rupiah }} missing</span>
-              {% elseif r.overdue %}
-                <span class="flag flag--risk">{{ r.days_overdue }} {{ r.days_overdue == 1 ? 'day' : 'days' }} overdue</span>
-              {% else %}
+              {% elseif not r.overdue %}
                 <span class="flag flag--ok">Deposit paid</span>
               {% endif %}
             </td>
