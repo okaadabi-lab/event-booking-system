@@ -40,12 +40,13 @@ final class InquiryService
     }
 
     /**
-     * Counts a submission against the IP's hourly limit. Called for honeypot hits
-     * too, so a bot that keeps retrying is also slowed down.
+     * Counts a submission against the IP's hourly limit and returns false when it
+     * goes over. Called for honeypot hits too, so a bot that keeps retrying is also
+     * slowed down.
      */
-    public function countAttempt(string $ip): void
+    public function recordAttempt(string $ip): bool
     {
-        $this->limiter->hit(self::BUCKET, $ip);
+        return $this->limiter->attempt(self::BUCKET, $ip, $this->maxPerHour, 3600);
     }
 
     public function submit(InquiryForm $form): string

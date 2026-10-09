@@ -37,7 +37,7 @@ final class InquiryController
         $body = RequestContext::body($request);
         $session = RequestContext::session($request);
 
-        if ($this->inquiries->isRateLimited($ip)) {
+        if ($this->inquiries->isRateLimited($ip) || !$this->inquiries->recordAttempt($ip)) {
             $this->logger->warning('Inquiry rate limit hit', ['ip' => $ip]);
 
             return $this->renderForm($request, $response, [
@@ -45,7 +45,6 @@ final class InquiryController
                 'submitted' => array_diff_key($body, ['_csrf' => true, self::HONEYPOT_FIELD => true]),
             ], 429)->withHeader('Retry-After', '3600');
         }
-        $this->inquiries->countAttempt($ip);
 
         $honeypot = $body[self::HONEYPOT_FIELD] ?? '';
         if (is_string($honeypot) && $honeypot !== '') {

@@ -33,7 +33,13 @@ final class Authenticator
         $key = mb_strtolower(trim($email)) . '|' . $ip;
         $window = $this->windowMinutes * 60;
 
-        if ($this->limiter->tooManyAttempts(self::BUCKET, $key, $this->maxFailures, $window)) {
+        // The first check keeps a locked-out client from extending its own lockout.
+        // The attempt is then counted before the password is verified, so parallel
+        // requests cannot all slip through between "check" and "count".
+        if (
+            $this->limiter->tooManyAttempts(self::BUCKET, $key, $this->maxFailures, $window)
+            || !$this->limiter->attempt(self::BUCKET, $key, $this->maxFailures, $window)
+        ) {
             throw new LoginThrottled($this->limiter->retryAfter(self::BUCKET, $key, $window));
         }
 
@@ -42,8 +48,6 @@ final class Authenticator
         $valid = password_verify($password, $hash);
 
         if ($record === null || !$valid || !$record['user']->isActive) {
-            $this->limiter->hit(self::BUCKET, $key);
-
             return null;
         }
 

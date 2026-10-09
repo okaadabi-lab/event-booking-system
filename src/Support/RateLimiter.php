@@ -55,6 +55,18 @@ final class RateLimiter
         return max(1, $expires - $now->getTimestamp());
     }
 
+    /**
+     * Records an attempt, then reports whether it is within the limit. Writing the
+     * row before counting closes the check-then-write gap: when parallel requests
+     * race, only the first $maxAttempts rows to commit are allowed through.
+     */
+    public function attempt(string $bucket, string $key, int $maxAttempts, int $windowSeconds): bool
+    {
+        $this->hit($bucket, $key);
+
+        return $this->attempts($bucket, $key, $windowSeconds) <= $maxAttempts;
+    }
+
     public function hit(string $bucket, string $key): void
     {
         $this->db->run(
