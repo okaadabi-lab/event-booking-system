@@ -2,7 +2,7 @@
 
 Booking and operations system for an event decoration and venue rental business: quotes, resource scheduling with conflict detection, deposits and payment tracking.
 
-[![CI](https://github.com/__GITHUB_USER__/event-booking-system/actions/workflows/ci.yml/badge.svg)](https://github.com/__GITHUB_USER__/event-booking-system/actions/workflows/ci.yml)
+[![CI](https://github.com/okaadabi-lab/event-booking-system/actions/workflows/ci.yml/badge.svg)](https://github.com/okaadabi-lab/event-booking-system/actions/workflows/ci.yml)
 
 > Portfolio project. All data in this repository is fictional sample data. "Lentera Decor & Hall" is an invented business.
 
@@ -169,7 +169,7 @@ The short version. [docs/design-decisions.md](docs/design-decisions.md) has the 
 
 ## Part of a portfolio
 
-[customer-data-pipeline](https://github.com/__GITHUB_USER__/customer-data-pipeline) cleans and deduplicates the kind of customer and lead records this app stores. The two share the idea of a customer record but are not connected at runtime.
+[customer-data-pipeline](https://github.com/okaadabi-lab/customer-data-pipeline) cleans and deduplicates the kind of customer and lead records this app stores. The two share the idea of a customer record but are not connected at runtime.
 
 ## License
 
