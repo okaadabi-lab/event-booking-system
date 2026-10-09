@@ -6,6 +6,7 @@ namespace Tests\Integration;
 
 use App\Auth\Role;
 use App\Auth\User;
+use App\Booking\BookingRepository;
 use App\Booking\BookingService;
 use App\Booking\QuoteRequest;
 use App\Resource\ResourceConflict;
@@ -243,6 +244,41 @@ final class ResourceConflictTest extends DatabaseTestCase
 
         self::assertFalse($this->db->pdo()->inTransaction());
         self::assertFalse($this->scheduler->isAssigned($booking, $this->hall));
+    }
+
+    public function testConflictCheckSeesHoldsCommittedAfterTheTransactionStarted(): void
+    {
+        // createQuote and updateQuote read the catalog before they reach assign(). Under
+        // REPEATABLE READ that first read would freeze the snapshot, and the overlap
+        // query would miss a hold committed while this transaction waited for the lock.
+        $mine = $this->makeBooking($this->sales, phone: '+6281200000001');
+        $theirs = $this->makeBooking($this->sales, phone: '+6281200000002');
+        $otherWorker = $this->buildContainer(TestConfig::get())->make(ResourceScheduler::class);
+
+        $this->db->pdo()->beginTransaction();
+        try {
+            $this->db->fetchValue('SELECT COUNT(*) FROM booking_resources');
+            $otherWorker->assign($theirs, $this->hall, $this->sales->id);
+
+            $this->expectException(ResourceConflict::class);
+            $this->scheduler->assign($mine, $this->hall, $this->sales->id);
+        } finally {
+            $this->db->pdo()->rollBack();
+        }
+    }
+
+    public function testBookingLockDoesNotLockTheCustomer(): void
+    {
+        $booking = $this->makeBooking($this->sales);
+        $customerId = (int) $this->db->fetchValue('SELECT customer_id FROM bookings WHERE id = :id', ['id' => $booking]);
+        $other = Database::fromConfig(TestConfig::get());
+        $other->pdo()->exec('SET SESSION innodb_lock_wait_timeout = 1');
+
+        $this->db->transactional(function () use ($booking, $customerId, $other): void {
+            $this->container->make(BookingRepository::class)->lockForUpdate($booking);
+            $locked = $other->fetchOne('SELECT id FROM customers WHERE id = :id FOR UPDATE', ['id' => $customerId]);
+            self::assertNotNull($locked);
+        });
     }
 
     private function schedulerWithBuffer(int $minutes): ResourceScheduler

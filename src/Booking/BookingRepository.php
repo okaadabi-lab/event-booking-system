@@ -27,12 +27,16 @@ final class BookingRepository
 
     /**
      * Re-reads the booking with an exclusive row lock held until the transaction ends.
+     * Only the bookings row is locked: FOR UPDATE on the customer join would also lock
+     * the customer and quietly serialise every write to that customer's other bookings.
      */
     public function lockForUpdate(int $id): ?Booking
     {
-        $row = $this->db->fetchOne(self::SELECT . ' WHERE b.id = :id FOR UPDATE', ['id' => $id]);
+        if ($this->db->fetchValue('SELECT id FROM bookings WHERE id = :id FOR UPDATE', ['id' => $id]) === false) {
+            return null;
+        }
 
-        return $row === null ? null : Booking::fromRow($row);
+        return $this->find($id);
     }
 
     /**
