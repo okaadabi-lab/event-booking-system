@@ -70,6 +70,11 @@ final class PaymentService
             if ($paidAt > $this->clock->now()) {
                 throw new DomainRuleViolation('The payment date cannot be in the future.');
             }
+            // Catches typos such as 2016 for 2026; such a row would also never show
+            // up in any monthly export anyone looks at.
+            if ($paidAt < $this->clock->now()->modify('-1 year')) {
+                throw new DomainRuleViolation('The payment date cannot be more than a year in the past.');
+            }
 
             $paidNet = $this->bookings->paidNet($bookingId);
             if ($kind === PaymentKind::Payment && $paidNet + $amount > $booking->total) {

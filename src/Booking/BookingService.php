@@ -16,6 +16,7 @@ use App\Resource\ResourceScheduler;
 use App\Support\Clock;
 use App\Support\Database;
 use App\Support\DomainRuleViolation;
+use App\Support\ValidationFailed;
 
 /**
  * All booking writes go through here. Each public method is one transaction:
@@ -46,6 +47,7 @@ final class BookingService
     public function createQuote(array $customerDetails, QuoteRequest $request, User $actor): int
     {
         $this->policy->authorize($actor, Ability::CreateBooking);
+        $this->assertEventDateNotPast($request);
 
         return $this->db->transactional(function () use ($customerDetails, $request, $actor): int {
             $customer = $this->customers->findOrCreate(
@@ -101,6 +103,9 @@ final class BookingService
                     throw new AccessDenied('Your role does not allow editing quotes.');
                 }
                 throw new DomainRuleViolation("A {$booking->status->value} booking's quote can no longer be changed.");
+            }
+            if ($request->eventDate != $booking->eventDate) {
+                $this->assertEventDateNotPast($request);
             }
 
             $existing = [];
@@ -357,6 +362,17 @@ final class BookingService
             if ($conflicts !== []) {
                 throw new ResourceConflict($resource->name, $conflicts);
             }
+        }
+    }
+
+    /**
+     * New and moved events must be today or later. An old inquiry that is edited
+     * without touching its date can still be saved (for example to add a note).
+     */
+    private function assertEventDateNotPast(QuoteRequest $request): void
+    {
+        if ($request->eventDate < $this->clock->now()->setTime(0, 0)) {
+            throw new ValidationFailed(['event_date' => 'The event date cannot be in the past.']);
         }
     }
 

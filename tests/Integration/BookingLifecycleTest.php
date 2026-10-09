@@ -19,6 +19,7 @@ use App\Resource\ResourceScheduler;
 use App\Resource\ResourceType;
 use App\Resource\TimeWindow;
 use App\Support\DomainRuleViolation;
+use App\Support\ValidationFailed;
 use Tests\Support\DatabaseTestCase;
 
 final class BookingLifecycleTest extends DatabaseTestCase
@@ -233,6 +234,14 @@ final class BookingLifecycleTest extends DatabaseTestCase
 
         $this->expectExceptionMessage('can no longer be changed');
         $this->service->updateQuote($id, $this->request($package), $this->owner);
+    }
+
+    public function testNewQuoteCannotBeForAPastEvent(): void
+    {
+        self::assertSame('quoted', $this->bookingStatus($this->makeBooking($this->sales, '2026-10-09 06:00', '2026-10-09 18:00')));
+
+        $this->expectException(ValidationFailed::class);
+        $this->makeBooking($this->sales, '2026-10-08 06:00', '2026-10-08 18:00', phone: '+6281200000002');
     }
 
     public function testFailedSaveLeavesNoPartialBooking(): void

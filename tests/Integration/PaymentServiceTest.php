@@ -72,6 +72,14 @@ final class PaymentServiceTest extends DatabaseTestCase
         );
     }
 
+    public function testPaymentDateCannotBeMoreThanAYearOld(): void
+    {
+        $this->record(PaymentKind::Payment, 1_000_000, null, '2025-10-09 10:00');
+
+        $this->expectExceptionMessage('more than a year in the past');
+        $this->record(PaymentKind::Payment, 1_000_000, null, '2025-10-09 09:59');
+    }
+
     public function testSalesCannotRecordPayments(): void
     {
         $this->expectException(AccessDenied::class);
