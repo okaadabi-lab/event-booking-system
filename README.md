@@ -2,7 +2,7 @@
 
 Booking and operations system for an event decoration & venue rental business: quotes, resource scheduling with conflict detection, deposits and payment tracking.
 
-[![CI](https://github.com/oka-adabi/event-booking-system/actions/workflows/ci.yml/badge.svg)](https://github.com/oka-adabi/event-booking-system/actions/workflows/ci.yml)
+[![CI](https://github.com/__GITHUB_USER__/event-booking-system/actions/workflows/ci.yml/badge.svg)](https://github.com/__GITHUB_USER__/event-booking-system/actions/workflows/ci.yml)
 
 > Portfolio project. All data in this repository is fictional sample data. "Lentera Decor & Hall" is an invented business.
 
@@ -22,11 +22,11 @@ This application makes those mistakes hard to make. It enforces the rules in one
 ## Features
 
 - **Public inquiry form** (`/inquiry`, no login). It creates a customer (matched by phone number) and a booking in `inquiry` status. Bots are filtered by a honeypot field and a database-backed rate limit per IP.
-- **Quote builder.** Pick a package and add-ons. The total updates live in vanilla JS that mirrors the server calculation. Free and busy venues and crews are shown for the proposed setup→teardown window through a JSON endpoint. Ticked resources are reserved in the same transaction as the quote.
+- **Quote builder.** Pick a package and add-ons. The total updates live in vanilla JS that mirrors the server calculation. Free and busy venues and crews are shown for the proposed setup→teardown window through a JSON endpoint. Ticked resources are reserved in the same transaction as the quote. New quotes cannot be dated in the past.
 - **Price snapshots.** Each booking item stores the name, catalog price and quoted unit price at save time. Later catalog changes never reprice an existing quote. Owners can override a unit price, and the override is audited.
 - **Resource scheduling with conflict detection.** A venue or crew cannot hold two bookings whose windows overlap, including a configurable changeover buffer. Cancelling a booking releases its resources.
 - **Guarded state machine.** The flow is `inquiry → quoted → confirmed → completed`, and `cancelled` is reachable from any open state. To confirm, the deposit must be paid, at least one resource must be assigned and there must be no conflicts. Completing is only possible after the event. Cancelling needs a reason. A blocked transition shows a flash message that names exactly what is missing.
-- **Payments.** The deposit percentage (default 30%) gates confirmation. The balance is due N days before the event (default 14). Payments and refunds are recorded with method, reference, timestamp and who recorded them. Outstanding and overdue amounts are derived, never stored.
+- **Payments.** The deposit percentage (default 30%) gates confirmation. The balance is due N days before the event (default 14). Payments and refunds are recorded with method, reference, timestamp and who recorded them. A payment date must fall within the last year and not in the future. Outstanding and overdue amounts are derived, never stored.
 - **Finance view.** Receivables are aged as overdue, due within 30 days, or due later. There is a monthly CSV export of received payments, guarded against spreadsheet formula injection.
 - **Resource calendar.** A month grid of resources × days shows occupancy at a glance.
 - **Activity log.** Status changes, payments, refunds, price overrides and resource assignments are recorded with who, when, and before/after JSON.
@@ -201,22 +201,22 @@ composer test      # PHPUnit: unit + integration + HTTP (needs the _test databas
 composer lint      # PHPCS (PSR-12) + PHPStan level 8
 ```
 
-The suite has 228 tests:
+The suite has 235 tests:
 
 - **Unit:** pricing and totals, money parsing, the payment schedule and overdue boundaries, the full state transition table, the role × ability matrix, time windows, and CSV escaping.
-- **Integration:** runs against real MySQL/MariaDB. It covers conflict detection including the buffer boundary and edge-touching windows, a second connection holding the row lock, cancellation releasing resources, price snapshots, the payment rules, and migrations applying cleanly to an empty database.
+- **Integration:** runs against real MySQL/MariaDB. It covers conflict detection including the buffer boundary and edge-touching windows, a second connection holding the row lock, a hold committed by another connection mid-transaction (the reason for `READ COMMITTED`), the rate limiter counting parallel attempts, cancellation releasing resources, price snapshots, the payment rules, and migrations applying cleanly to an empty database.
 - **HTTP:** requests go through the full Slim middleware stack. It covers CSRF rejection, role 403s, login throttling and its expiry, session regeneration, cookie flags, security headers, the inquiry honeypot and rate limit, validation messages, and the quote → payment → confirm flow.
 
 ## Design decisions
 
 **Preventing double-booking without exclusion constraints.** PostgreSQL could enforce "no overlapping ranges per resource" with an exclusion constraint. MySQL cannot, and a plain check-then-insert races: two sales people can both see the hall free and both insert. `ResourceScheduler::assign()` therefore runs one transaction with these steps:
 
-1. `SELECT … FOR UPDATE` on the booking row.
+1. `SELECT … FOR UPDATE` on the booking row (only that row; the customer is read without a lock).
 2. `SELECT … FOR UPDATE` on the **resource** row. Every writer that can create an overlap on that resource has to take this lock first, so those writers queue up one at a time.
 3. Run the overlap query against bookings that still hold the resource (`inquiry`, `quoted`, `confirmed`). The test is `existing.setup_start < new.end + buffer AND existing.teardown_end > new.start − buffer`.
 4. Insert the assignment, write the activity log entry, and commit.
 
-The connection uses `READ COMMITTED`, so the overlap query after the lock sees rows committed by the transaction that held the lock before. Windows are half-open, so with a zero buffer a 06:00–12:00 hold and a 12:00–18:00 hold do not conflict.
+The connection uses `READ COMMITTED`, so the overlap query after the lock sees rows committed by the transaction that held the lock before. This matters because `createQuote` and `updateQuote` read the catalog before they reach the resource lock; under `REPEATABLE READ` that earlier read would fix the snapshot and the overlap query could miss a hold committed while the transaction waited. Windows are half-open, so with a zero buffer a 06:00–12:00 hold and a 12:00–18:00 hold do not conflict.
 
 Locks are always taken in the same order: the booking first, then resources by ascending id. No transaction locks two bookings. Together these rules mean the lock graph cannot form a cycle.
 
@@ -238,7 +238,7 @@ Changing a booking's window and confirming a booking also lock the resources the
 
 - Parameterised queries everywhere (`PDO::ATTR_EMULATE_PREPARES = false`). Sort columns come from a whitelist.
 - Passwords use `password_hash`/`password_verify` with rehash-on-login. Unknown emails still run a dummy bcrypt verify, so response timing does not reveal which accounts exist.
-- Login is throttled per email+IP. While locked, even the correct password is refused.
+- Login is throttled per email+IP. While locked, even the correct password is refused. Each attempt is written to the counter before the limit is checked, so a burst of parallel requests cannot get more guesses than the limit allows (the same applies to the inquiry form).
 - CSRF tokens are compared with `hash_equals`. Logout is POST only.
 - Session cookies are `HttpOnly` and `SameSite=Lax`, plus `Secure` over HTTPS. The session id is regenerated on login, and the pre-login id is deleted.
 - CSP: `default-src 'self'` with no `unsafe-inline` for scripts or styles. A test scans templates for inline scripts, styles and event handlers. Responses also send `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `Referrer-Policy` and `nosniff`.
@@ -252,6 +252,8 @@ Changing a booking's window and confirming a booking also lock the resources the
 - **Partial-day resources.** Crews are modelled as one unit. Splitting a large crew across two small events would need capacity-based scheduling instead of exclusive holds.
 - **Trusted proxies.** Behind a load balancer, `RequestContext::ip()` needs a configured trusted-proxy list before rate limits work per real client.
 - **Housekeeping is manual.** `bin/prune` removes idle sessions and old rate-limit rows, but scheduling it (cron) is left to the deployment.
+- **Throttling scope.** Login attempts are limited per email+IP, so one address can still try a few passwords against many accounts. A per-IP cap across all emails would be the next step.
+- **Session lifetime.** Sessions expire after two hours idle but have no absolute maximum age.
 - **Multi-day packages.** A window is capped at 96 hours, which is enough for a reception with an overnight setup but not for a week-long exhibition.
 
 ## License
