@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controller;
 
+use App\Auth\Ability;
+use App\Auth\Policy;
 use App\Booking\BookingRepository;
 use App\Http\RequestContext;
 use App\Http\View;
@@ -21,6 +23,7 @@ final class OperationsController
         private readonly View $view,
         private readonly OperationsBoard $board,
         private readonly BookingRepository $bookings,
+        private readonly Policy $policy,
         private readonly Clock $clock,
     ) {
     }
@@ -34,6 +37,7 @@ final class OperationsController
 
     public function today(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        $this->policy->authorize(RequestContext::user($request), Ability::ViewBookings);
         $range = RequestContext::query($request)['range'] ?? 'week';
         $range = is_string($range) && isset(self::RANGES[$range]) ? $range : 'week';
         $today = $this->clock->now();
@@ -60,6 +64,7 @@ final class OperationsController
 
     public function calendar(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        $this->policy->authorize(RequestContext::user($request), Ability::ViewBookings);
         $now = $this->clock->now();
         $month = RequestContext::query($request)['month'] ?? '';
         $first = is_string($month) ? DateTimeImmutable::createFromFormat('!Y-m', $month, $now->getTimezone()) : false;

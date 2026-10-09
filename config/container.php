@@ -187,6 +187,7 @@ return static function (Config $config): Container {
         $c->make(View::class),
         $c->make(OperationsBoard::class),
         $c->make(BookingRepository::class),
+        $c->make(Policy::class),
         $c->make(Clock::class),
     ));
     $c->set(BookingController::class, fn (Container $c) => new BookingController(

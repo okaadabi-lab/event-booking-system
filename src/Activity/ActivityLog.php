@@ -58,7 +58,7 @@ final class ActivityLog
              FROM activity_log a
              LEFT JOIN users u ON u.id = a.actor_user_id
              WHERE a.entity_type = :type AND a.entity_id = :id
-             ORDER BY a.id DESC',
+             ORDER BY a.created_at DESC, a.id DESC',
             ['type' => $entityType, 'id' => $entityId]
         );
 
